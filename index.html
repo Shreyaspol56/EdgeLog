@@ -821,11 +821,21 @@ async function loadAllFromCloud() {
   try {
     const uid = currentUser.id;
 
-    const [tRes, jRes, aRes] = await Promise.all([
+    // Add 10 second timeout
+    const withTimeout = (promise) => Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), 10000))
+    ]);
+
+    const [tRes, jRes, aRes] = await withTimeout(Promise.all([
       sb.from('trades').select('id,data').eq('user_id', uid),
       sb.from('journals').select('id,data').eq('user_id', uid),
       sb.from('account_events').select('id,data').eq('user_id', uid),
-    ]);
+    ]));
+
+    if (tRes.error) throw new Error('Trades: ' + tRes.error.message);
+    if (jRes.error) throw new Error('Journals: ' + jRes.error.message);
+    if (aRes.error) throw new Error('Events: ' + aRes.error.message);
 
     trades = (tRes.data || []).map(r => ({ ...r.data, id: r.id }));
     journals = (jRes.data || []).map(r => ({ ...r.data, id: r.id }));
@@ -839,7 +849,8 @@ async function loadAllFromCloud() {
     setSyncStatus('synced', 'SYNCED');
   } catch(e) {
     setSyncStatus('error', 'ERROR');
-    showToast('Could not load data from cloud.', true);
+    showToast('Could not load data: ' + e.message, true);
+    console.error('loadAllFromCloud error:', e);
   }
 }
 
