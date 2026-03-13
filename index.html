@@ -528,8 +528,8 @@
         <input type="number" class="form-input" id="f-entry" placeholder="0.00" step="0.01">
       </div>
       <div class="form-group">
-        <label class="form-label">Exit Price (per share / contract)</label>
-        <input type="number" class="form-input" id="f-exit" placeholder="0.00" step="0.01">
+        <label class="form-label">Exit Price (per share / contract) <span style="color:var(--muted);font-size:10px">— leave blank if scaling out</span></label>
+        <input type="number" class="form-input" id="f-exit" placeholder="0.00 (optional if scaling out)" step="0.01">
       </div>
       <div class="form-group">
         <label class="form-label">Shares / Qty (non-options)</label>
@@ -628,6 +628,68 @@
       </div>
       <div id="dep-balance-preview" style="background:var(--surface2);padding:14px;font-size:12px;color:var(--muted);line-height:1.8"></div>
       <button class="btn" onclick="saveDeposit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- PARTIAL EXIT MODAL -->
+<div class="modal-overlay" id="exit-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title">Add Partial Exit</div>
+      <button class="modal-close" onclick="closeExitModal()">✕</button>
+    </div>
+    <div style="padding:24px;display:grid;gap:16px">
+      <div id="exit-trade-info" style="background:var(--surface2);padding:12px;font-size:12px;color:var(--muted);line-height:1.8"></div>
+      <div class="form-group">
+        <label class="form-label">Exit Price (per contract)</label>
+        <input type="number" class="form-input" id="ex-price" placeholder="0.00" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contracts Sold</label>
+        <input type="number" class="form-input" id="ex-qty" placeholder="e.g. 30" step="1" min="1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Exit Time</label>
+        <input type="time" class="form-input" id="ex-time">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Commission ($)</label>
+        <input type="number" class="form-input" id="ex-comm" placeholder="0.00" step="0.01" min="0">
+      </div>
+      <div id="ex-preview" style="background:var(--surface2);padding:12px;font-size:12px;color:var(--muted);line-height:1.8;display:none"></div>
+      <button class="btn" onclick="savePartialExit()">Add Exit</button>
+    </div>
+  </div>
+</div>
+
+<!-- PARTIAL ENTRY MODAL -->
+<div class="modal-overlay" id="entry-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title">Add Scaled Entry</div>
+      <button class="modal-close" onclick="closeEntryModal()">✕</button>
+    </div>
+    <div style="padding:24px;display:grid;gap:16px">
+      <div id="entry-trade-info" style="background:var(--surface2);padding:12px;font-size:12px;color:var(--muted);line-height:1.8"></div>
+      <div class="form-group">
+        <label class="form-label">Entry Price (per contract)</label>
+        <input type="number" class="form-input" id="ent-price" placeholder="0.00" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contracts Bought</label>
+        <input type="number" class="form-input" id="ent-qty" placeholder="e.g. 30" step="1" min="1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Entry Time</label>
+        <input type="time" class="form-input" id="ent-time">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Commission ($)</label>
+        <input type="number" class="form-input" id="ent-comm" placeholder="0.00" step="0.01" min="0">
+      </div>
+      <div id="ent-preview" style="background:var(--surface2);padding:12px;font-size:12px;color:var(--muted);line-height:1.8;display:none"></div>
+      <button class="btn" onclick="savePartialEntry()">Add Entry</button>
     </div>
   </div>
 </div>
@@ -1108,7 +1170,227 @@ function deleteTrade(id) {
   renderTradesTable(); renderDashboard(); showToast('Deleted.');
 }
 
-function renderDashboard() {
+// ===== PARTIAL EXITS =====
+let currentExitTradeId = null;
+
+function openExitModal(tradeId) {
+  currentExitTradeId = tradeId;
+  const t = trades.find(t => t.id == tradeId);
+  if (!t) return;
+  const totalQty = t.contracts || t.size || 1;
+  const soldQty = (t.partialExits||[]).reduce((s,e)=>s+e.qty, 0);
+  const remaining = totalQty - soldQty;
+  document.getElementById('exit-trade-info').innerHTML =
+    `<strong style="color:var(--text)">${t.sym}</strong> · ${t.date} · Entry @ <strong style="color:var(--text)">$${t.entry.toFixed(2)}</strong><br>` +
+    `Total: <strong style="color:var(--text)">${totalQty} contracts</strong> · Sold: <strong style="color:#ffaa00">${soldQty}</strong> · Remaining: <strong style="color:var(--accent)">${remaining}</strong>`;
+  document.getElementById('ex-price').value = '';
+  document.getElementById('ex-qty').value = remaining > 0 ? remaining : '';
+  document.getElementById('ex-time').value = '';
+  document.getElementById('ex-comm').value = '';
+  document.getElementById('ex-preview').style.display = 'none';
+  document.getElementById('exit-modal').classList.add('open');
+
+  // Live preview on input
+  ['ex-price','ex-qty','ex-comm'].forEach(id => {
+    document.getElementById(id).oninput = updateExitPreview;
+  });
+}
+
+function updateExitPreview() {
+  const t = trades.find(t => t.id == currentExitTradeId);
+  if (!t) return;
+  const price = parseFloat(document.getElementById('ex-price').value);
+  const qty = parseInt(document.getElementById('ex-qty').value);
+  const comm = parseFloat(document.getElementById('ex-comm').value) || 0;
+  if (!price || !qty) { document.getElementById('ex-preview').style.display = 'none'; return; }
+  const mult = t.instrument === 'OPTION' ? 100 : 1;
+  const grossPnl = t.dir === 'LONG' ? (price - t.entry) * qty * mult : (t.entry - price) * qty * mult;
+  const netPnl = Math.round((grossPnl - comm) * 100) / 100;
+  const prev = document.getElementById('ex-preview');
+  prev.style.display = 'block';
+  prev.innerHTML = `Gross P&L: <strong style="color:var(--text)">$${grossPnl.toFixed(2)}</strong> · Net after comm: <strong style="color:${netPnl>=0?'var(--win)':'var(--loss)'}">${netPnl>=0?'+':''}$${netPnl.toFixed(2)}</strong>`;
+}
+
+function closeExitModal() {
+  document.getElementById('exit-modal').classList.remove('open');
+  currentExitTradeId = null;
+}
+
+async function savePartialExit() {
+  const t = trades.find(t => t.id == currentExitTradeId);
+  if (!t) return;
+  const price = parseFloat(document.getElementById('ex-price').value);
+  const qty = parseInt(document.getElementById('ex-qty').value);
+  const time = document.getElementById('ex-time').value;
+  const comm = parseFloat(document.getElementById('ex-comm').value) || 0;
+  if (!price || !qty) { showToast('Price and quantity required.', true); return; }
+
+  const totalQty = t.contracts || t.size || 1;
+  const soldQty = (t.partialExits||[]).reduce((s,e)=>s+e.qty, 0);
+  if (qty > totalQty - soldQty) { showToast(`Only ${totalQty - soldQty} contracts remaining.`, true); return; }
+
+  const mult = t.instrument === 'OPTION' ? 100 : 1;
+  const grossPnl = t.dir === 'LONG' ? (price - t.entry) * qty * mult : (t.entry - price) * qty * mult;
+  const netPnl = Math.round((grossPnl - comm) * 100) / 100;
+
+  if (!t.partialExits) t.partialExits = [];
+  t.partialExits.push({ price, qty, time, comm, pnl: netPnl });
+
+  // Recalculate total P&L and R multiple on the trade
+  const totalPnl = t.partialExits.reduce((s,e)=>s+e.pnl, 0);
+  t.pnl = Math.round(totalPnl * 100) / 100;
+  t.commissions = (t.commEntry || 0) + t.partialExits.reduce((s,e)=>s+e.comm, 0);
+  if (t.sl) {
+    const risk = Math.abs(t.entry - t.sl) * totalQty * mult;
+    if (risk > 0) t.rr = Math.round(Math.abs(totalPnl) / risk * 100) / 100;
+  }
+  // Set exit time to last exit
+  t.exitTime = time || t.exitTime;
+
+  await cloudUpsertTrade(t);
+  closeExitModal();
+  renderTradesTable();
+  renderDashboard();
+  showToast(`Exit added: ${qty} contracts @ $${price.toFixed(2)} → ${netPnl>=0?'+':''}$${netPnl.toFixed(2)}`);
+}
+
+async function deletePartialExit(tradeId, exitIndex) {
+  if (!confirm('Remove this partial exit?')) return;
+  const t = trades.find(t => t.id == tradeId);
+  if (!t || !t.partialExits) return;
+  t.partialExits.splice(exitIndex, 1);
+  if (t.partialExits.length === 0) {
+    t.pnl = 0;
+  } else {
+    t.pnl = Math.round(t.partialExits.reduce((s,e)=>s+e.pnl, 0) * 100) / 100;
+  }
+  t.commissions = (t.commEntry || 0) + t.partialExits.reduce((s,e)=>s+e.comm, 0);
+  await cloudUpsertTrade(t);
+  renderTradesTable();
+  renderDashboard();
+  showToast('Exit removed.');
+}
+
+// ===== PARTIAL ENTRIES =====
+let currentEntryTradeId = null;
+
+function openEntryModal(tradeId) {
+  currentEntryTradeId = tradeId;
+  const t = trades.find(t => t.id == tradeId);
+  if (!t) return;
+  const existingEntries = t.partialEntries || [];
+  const totalAdded = existingEntries.reduce((s,e)=>s+e.qty, 0);
+  const allEntries = [{price: t.entry, qty: t.contracts || t.size || 1}, ...existingEntries];
+  const totalCost = allEntries.reduce((s,e)=>s+e.price*e.qty, 0);
+  const totalQty = allEntries.reduce((s,e)=>s+e.qty, 0);
+  const avgEntry = (totalCost / totalQty).toFixed(2);
+  document.getElementById('entry-trade-info').innerHTML =
+    `<strong style="color:var(--text)">${t.sym}</strong> · ${t.date} · Initial entry @ <strong style="color:var(--text)">$${t.entry.toFixed(2)}</strong><br>` +
+    `Entries so far: <strong style="color:var(--text)">${existingEntries.length + 1}</strong> · Total contracts: <strong style="color:#ffaa00">${totalQty}</strong> · Avg entry: <strong style="color:var(--win)">$${avgEntry}</strong>`;
+  document.getElementById('ent-price').value = '';
+  document.getElementById('ent-qty').value = '';
+  document.getElementById('ent-time').value = '';
+  document.getElementById('ent-comm').value = '';
+  document.getElementById('ent-preview').style.display = 'none';
+  document.getElementById('entry-modal').classList.add('open');
+
+  ['ent-price','ent-qty'].forEach(id => {
+    document.getElementById(id).oninput = updateEntryPreview;
+  });
+}
+
+function updateEntryPreview() {
+  const t = trades.find(t => t.id == currentEntryTradeId);
+  if (!t) return;
+  const price = parseFloat(document.getElementById('ent-price').value);
+  const qty = parseInt(document.getElementById('ent-qty').value);
+  if (!price || !qty) { document.getElementById('ent-preview').style.display = 'none'; return; }
+
+  const existingEntries = t.partialEntries || [];
+  const allEntries = [{price: t.entry, qty: t.contracts || t.size || 1}, ...existingEntries, {price, qty}];
+  const totalCost = allEntries.reduce((s,e)=>s+e.price*e.qty, 0);
+  const totalQty = allEntries.reduce((s,e)=>s+e.qty, 0);
+  const newAvg = (totalCost / totalQty).toFixed(2);
+
+  const prev = document.getElementById('ent-preview');
+  prev.style.display = 'block';
+  prev.innerHTML = `New total contracts: <strong style="color:var(--text)">${totalQty}</strong> · New avg entry: <strong style="color:var(--win)">$${newAvg}</strong>`;
+}
+
+function closeEntryModal() {
+  document.getElementById('entry-modal').classList.remove('open');
+  currentEntryTradeId = null;
+}
+
+async function savePartialEntry() {
+  const t = trades.find(t => t.id == currentEntryTradeId);
+  if (!t) return;
+  const price = parseFloat(document.getElementById('ent-price').value);
+  const qty = parseInt(document.getElementById('ent-qty').value);
+  const time = document.getElementById('ent-time').value;
+  const comm = parseFloat(document.getElementById('ent-comm').value) || 0;
+  if (!price || !qty) { showToast('Price and quantity required.', true); return; }
+
+  if (!t.partialEntries) t.partialEntries = [];
+  t.partialEntries.push({ price, qty, time, comm });
+
+  // Update total contracts
+  const allEntries = [{price: t.entry, qty: t.contracts || t.size || 1}, ...t.partialEntries];
+  const totalContracts = allEntries.reduce((s,e)=>s+e.qty, 0);
+  const totalCost = allEntries.reduce((s,e)=>s+e.price*e.qty, 0);
+  const avgEntry = totalCost / totalContracts;
+
+  t.contracts = totalContracts;
+  t.commEntry = (t.commEntry || 0) + comm;
+  t.commissions = t.commEntry + (t.partialExits||[]).reduce((s,e)=>s+e.comm, 0);
+
+  // Recalculate P&L on exits using new weighted avg entry
+  if (t.partialExits && t.partialExits.length > 0) {
+    const mult = t.instrument === 'OPTION' ? 100 : 1;
+    t.partialExits.forEach(ex => {
+      const gross = t.dir === 'LONG' ? (ex.price - avgEntry) * ex.qty * mult : (avgEntry - ex.price) * ex.qty * mult;
+      ex.pnl = Math.round((gross - ex.comm) * 100) / 100;
+    });
+    t.pnl = Math.round(t.partialExits.reduce((s,e)=>s+e.pnl, 0) * 100) / 100;
+  }
+
+  // Recalculate R if stop loss set
+  if (t.sl) {
+    const mult = t.instrument === 'OPTION' ? 100 : 1;
+    const risk = Math.abs(avgEntry - t.sl) * totalContracts * mult;
+    if (risk > 0 && t.pnl) t.rr = Math.round(Math.abs(t.pnl) / risk * 100) / 100;
+  }
+
+  await cloudUpsertTrade(t);
+  closeEntryModal();
+  renderTradesTable();
+  renderDashboard();
+  showToast(`Entry added: ${qty} contracts @ $${price.toFixed(2)} · New avg: $${avgEntry.toFixed(2)}`);
+}
+
+async function deletePartialEntry(tradeId, entryIndex) {
+  if (!confirm('Remove this scaled entry?')) return;
+  const t = trades.find(t => t.id == tradeId);
+  if (!t || !t.partialEntries) return;
+  const removedQty = t.partialEntries[entryIndex].qty;
+  const removedComm = t.partialEntries[entryIndex].comm || 0;
+  t.partialEntries.splice(entryIndex, 1);
+
+  // Recalculate totals
+  const allEntries = [{price: t.entry, qty: (t.contracts || 1) - removedQty}, ...t.partialEntries];
+  // Restore original contract count
+  const baseQty = (t.contracts || 1) - removedQty - t.partialEntries.reduce((s,e)=>s+e.qty,0) + (t.contracts||1) - removedQty;
+  t.contracts = allEntries.reduce((s,e)=>s+e.qty, 0);
+  t.commEntry = Math.max(0, (t.commEntry||0) - removedComm);
+  t.commissions = t.commEntry + (t.partialExits||[]).reduce((s,e)=>s+e.comm,0);
+
+  await cloudUpsertTrade(t);
+  renderTradesTable();
+  renderDashboard();
+  showToast('Scaled entry removed.');
+}
+
+
   document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
   const totalPnl = trades.reduce((s,t) => s+t.pnl, 0);
   const wins = trades.filter(t => t.pnl > 0).length;
@@ -1174,24 +1456,78 @@ function renderTradesTable() {
     <th>Strike/Exp</th><th>Strategy</th><th>Entry $</th><th>Exit $</th><th>Qty</th>
     <th>Comm</th><th>Net P&L</th><th>R:R</th><th>Setup</th><th></th>
   </tr></thead><tbody>
-  ${sorted.map(t=>`<tr>
+  ${sorted.map(t => {
+    const hasExits = t.partialExits && t.partialExits.length > 0;
+    const hasEntries = t.partialEntries && t.partialEntries.length > 0;
+    const isScaled = hasExits || hasEntries;
+    const exitsSoldQty = hasExits ? t.partialExits.reduce((s,e)=>s+e.qty,0) : 0;
+    const totalQty = t.contracts || t.size || 1;
+    const remaining = totalQty - exitsSoldQty;
+    const displayPnl = hasExits ? t.partialExits.reduce((s,e)=>s+e.pnl,0) : t.pnl;
+    const pnlClass = displayPnl >= 0 ? 'pos' : 'neg';
+
+    // Weighted avg entry
+    let avgEntry = t.entry;
+    if (hasEntries) {
+      const allEntries = [{price: t.entry, qty: t.contracts || t.size || 1}, ...t.partialEntries];
+      const totalCost = allEntries.reduce((s,e)=>s+e.price*e.qty,0);
+      const totalContracts = allEntries.reduce((s,e)=>s+e.qty,0);
+      avgEntry = totalCost / totalContracts;
+    }
+
+    const entrySubRows = hasEntries ? t.partialEntries.map((en,i) => `
+      <tr style="background:rgba(100,200,100,0.04);border-left:2px solid var(--win)">
+        <td colspan="2" style="color:var(--win);font-size:10px;padding-left:24px">↳ Add-in ${i+1}${en.time?' @ '+en.time:''}</td>
+        <td></td>
+        <td style="font-size:11px;color:var(--muted)">${t.sym}</td>
+        <td></td><td></td><td></td><td></td>
+        <td style="color:var(--win);font-size:12px">$${en.price.toFixed(2)}</td>
+        <td></td>
+        <td style="font-size:12px">${en.qty} ct</td>
+        <td style="color:#ffaa00;font-size:11px">${en.comm>0?'-$'+en.comm.toFixed(2):'—'}</td>
+        <td style="font-size:11px;color:var(--muted)">entry</td>
+        <td></td><td></td>
+        <td><button class="icon-btn" style="font-size:9px;padding:2px 5px" onclick="deletePartialEntry(${t.id},${i})">✕</button></td>
+      </tr>`).join('') : '';
+
+    const exitSubRows = hasExits ? t.partialExits.map((ex,i) => `
+      <tr style="background:rgba(68,136,255,0.04);border-left:2px solid var(--accent3)">
+        <td colspan="2" style="color:var(--accent3);font-size:10px;padding-left:24px">↳ Exit ${i+1}${ex.time?' @ '+ex.time:''}</td>
+        <td></td>
+        <td style="font-size:11px;color:var(--muted)">${t.sym}</td>
+        <td></td><td></td><td></td><td></td>
+        <td></td>
+        <td style="color:var(--accent3);font-size:12px">$${ex.price.toFixed(2)}</td>
+        <td style="font-size:12px">${ex.qty} ct</td>
+        <td style="color:#ffaa00;font-size:11px">${ex.comm>0?'-$'+ex.comm.toFixed(2):'—'}</td>
+        <td class="pnl ${ex.pnl>=0?'pos':'neg'}" style="font-size:12px">${ex.pnl>=0?'+':''}$${ex.pnl.toFixed(2)}</td>
+        <td></td><td></td>
+        <td><button class="icon-btn" style="font-size:9px;padding:2px 5px" onclick="deletePartialExit(${t.id},${i})">✕</button></td>
+      </tr>`).join('') : '';
+
+    return `<tr style="${isScaled?'border-left:3px solid var(--accent)':''}">
     <td>${t.date}</td>
-    <td>${t.entryTime||'—'}</td>
-    <td>${t.exitTime||'—'}</td>
-    <td style="font-weight:600;font-family:'Syne',sans-serif">${t.sym}</td>
+    <td>${t.entryTime||'—'}${hasEntries?`<div style="font-size:9px;color:var(--win)">${(t.partialEntries.length+1)} entries</div>`:''}</td>
+    <td>${hasExits ? (remaining>0?`<span style="color:#ffaa00;font-size:10px">${exitsSoldQty}/${totalQty} sold</span>`:'<span style="color:var(--win);font-size:10px">✓ closed</span>') : (t.exitTime||'—')}</td>
+    <td style="font-weight:600;font-family:'Syne',sans-serif">${t.sym}${isScaled?'<div style="font-size:9px;color:var(--accent);letter-spacing:1px">SCALED</div>':''}</td>
     <td>${t.instrument||'STOCK'}</td>
     <td>${t.instrument==='OPTION'?`<span class="badge ${(t.optionType||'').toLowerCase()}">${t.optionType||''}</span>`:`<span class="badge ${t.dir.toLowerCase()}">${t.dir}</span>`}</td>
     <td>${t.strike?`$${t.strike} ${t.expiry?'/ '+t.expiry:''}`:t.expiry||'—'}</td>
     <td>${t.strategy?`<span class="tag">${t.strategy}</span>`:t.setup?`<span class="tag">${t.setup}</span>`:'—'}</td>
-    <td>$${(t.entry||0).toFixed(2)}</td>
-    <td>$${(t.exit||0).toFixed(2)}</td>
+    <td>${hasEntries?`<span style="color:var(--win);font-size:11px">avg $${avgEntry.toFixed(2)}</span>`:`$${(t.entry||0).toFixed(2)}`}</td>
+    <td>${hasExits?`<span style="color:var(--muted);font-size:10px">${t.partialExits.length} exits</span>`:`$${(t.exit||0).toFixed(2)}`}</td>
     <td>${t.contracts?t.contracts+' ct':t.size||1}</td>
-    <td style="color:#ffaa00">${t.commissions>0?`-$${t.commissions.toFixed(2)}<div style="font-size:9px;color:#aa7700">${t.commEntry?'in:$'+t.commEntry.toFixed(2):''} ${t.commExit?'out:$'+t.commExit.toFixed(2):''}</div>`:'—'}</td>
-    <td class="pnl ${t.pnl>=0?'pos':'neg'}">${t.pnl>=0?'+':''}$${t.pnl.toFixed(2)}</td>
+    <td style="color:#ffaa00">${t.commissions>0?`-$${t.commissions.toFixed(2)}`:'—'}</td>
+    <td class="pnl ${pnlClass}">${hasExits&&remaining>0?`<span style="font-size:9px;color:var(--muted)">so far: </span>`:''}${displayPnl>=0?'+':''}$${displayPnl.toFixed(2)}</td>
     <td>${t.rr?t.rr+':1':'—'}</td>
     <td>${t.setup?`<span class="tag">${t.setup}</span>`:'—'}</td>
-    <td><button class="icon-btn" onclick="deleteTrade(${t.id})">✕</button></td>
-  </tr>`).join('')}
+    <td style="display:flex;gap:3px;align-items:center;flex-wrap:wrap">
+      <button class="icon-btn" style="border-color:var(--win);color:var(--win);font-size:9px" onclick="openEntryModal(${t.id})">+ In</button>
+      <button class="icon-btn" style="border-color:var(--accent3);color:var(--accent3);font-size:9px" onclick="openExitModal(${t.id})">+ Out</button>
+      <button class="icon-btn" onclick="deleteTrade(${t.id})">✕</button>
+    </td>
+  </tr>${entrySubRows}${exitSubRows}`;
+  }).join('')}
   </tbody></table></div>`;
 }
 
@@ -1416,7 +1752,8 @@ function parseIBKR(text){
     return obj;
   });
 
-  // Group by symbol, then pair Opens (Code=O) with Closes (Code=C) in order
+  // Group by symbol, then pair Opens with Closes using FIFO queue
+  // This correctly handles: buying 2 then selling 1+1 (scaling out), or buying 1+1 then selling 2 together
   const bySymbol = {};
   orderRows.forEach(r=>{
     const sym = r['Symbol'];
@@ -1426,8 +1763,6 @@ function parseIBKR(text){
 
   const result = [];
   Object.entries(bySymbol).forEach(([sym, rows])=>{
-    const opens  = rows.filter(r=>(r['Code']||'').includes('O'));
-    const closes = rows.filter(r=>(r['Code']||'').includes('C'));
     const fi = fiMap[sym] || {};
     const underlying = fi['Underlying'] || sym.split(' ')[0];
     const optionType = fi['Type'] === 'C' ? 'CALL' : fi['Type'] === 'P' ? 'PUT' : null;
@@ -1435,52 +1770,98 @@ function parseIBKR(text){
     const expiry = fi['Expiry'] || null;
     const isOption = !!(fi['Type']);
 
-    opens.forEach((open, i)=>{
-      const close = closes[i];
-      // Parse datetime "2026-02-24, 09:38:38"
-      const openDT  = (open['Date/Time']||'').replace(/"/g,'').trim().split(', ');
-      const closeDT = close ? (close['Date/Time']||'').replace(/"/g,'').trim().split(', ') : null;
+    // Collect all opens and closes
+    const opens = [];
+    const closes = [];
 
-      const qty         = Math.abs(parseFloat(open['Quantity'])||1);
-      const entryPrice  = parseFloat(open['T. Price'])||0;
-      const exitPrice   = close ? parseFloat(close['T. Price'])||0 : 0;
-      const entryComm   = Math.abs(parseFloat(open['Comm/Fee'])||0);
-      const exitComm    = close ? Math.abs(parseFloat(close['Comm/Fee'])||0) : 0;
-      const commissions = Math.round((entryComm+exitComm)*100)/100;
-      // Use IBKR's own Realized P/L from the close row — most accurate
-      const realizedPnl = close ? parseFloat(close['Realized P/L'])||0 : 0;
-      const pnl = Math.round((realizedPnl)*100)/100; // IBKR P/L already excludes commissions
-      const direction = parseFloat(open['Quantity']) > 0 ? 'LONG' : 'SHORT';
-      const mult = isOption ? qty*100 : qty;
-
-      result.push({
-        id: Date.now()+Math.random(),
-        sym: underlying,
-        fullSymbol: sym,
-        date: openDT[0] || '',
-        entryTime: openDT[1] || '',
-        exitTime: closeDT ? closeDT[1] : '',
-        instrument: isOption ? 'OPTION' : 'STOCK',
-        dir: direction,
-        entry: entryPrice,
-        exit: exitPrice,
-        size: qty,
-        contracts: isOption ? qty : null,
-        multiplier: mult,
-        commissions,
-        commEntry: entryComm,
-        commExit: exitComm,
-        pnl,
-        optionType,
-        strike: strike ? parseFloat(strike) : null,
-        expiry,
-        iv: null, delta: null, dte: null,
-        strategy: '',
-        setup: '',
-        outcome: pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'BREAKEVEN',
-        rr: null, sl: null, tp: null, notes: '', mistake: '', conviction: null
-      });
+    rows.forEach(r => {
+      const qty = parseFloat(r['Quantity']) || 0;
+      const price = parseFloat(r['T. Price']) || 0;
+      const comm = Math.abs(parseFloat(r['Comm/Fee']) || 0);
+      const dt = (r['Date/Time']||'').replace(/"/g,'').trim();
+      const realizedPnl = parseFloat(r['Realized P/L']) || 0;
+      if (qty > 0) opens.push({ qty, price, comm, dt });
+      else if (qty < 0) closes.push({ qty: Math.abs(qty), price, comm, dt, realizedPnl });
     });
+
+    if (opens.length === 0 || closes.length === 0) return; // skip uncompleted
+
+    // Build one trade per contiguous open session
+    // Group into "sessions" — a new session starts if all opens are fully closed before new opens appear
+    // Simple approach: one trade per symbol, all opens = partialEntries, all closes = partialExits
+    const firstOpen = opens[0];
+    const totalOpenQty = opens.reduce((s,o)=>s+o.qty, 0);
+    const totalCloseQty = closes.reduce((s,c)=>s+c.qty, 0);
+
+    // Weighted avg entry
+    const totalEntryCost = opens.reduce((s,o)=>s+o.price*o.qty, 0);
+    const avgEntry = totalEntryCost / totalOpenQty;
+
+    // Total entry commission
+    const totalEntryComm = opens.reduce((s,o)=>s+o.comm, 0);
+
+    // Total realized P&L from IBKR (most accurate)
+    const totalPnl = Math.round(closes.reduce((s,c)=>s+c.realizedPnl, 0) * 100) / 100;
+
+    // Total exit commission
+    const totalExitComm = closes.reduce((s,c)=>s+c.comm, 0);
+
+    // Build partialEntries (all except the first, which becomes the main entry)
+    const partialEntries = opens.slice(1).map(o => ({
+      price: o.price,
+      qty: o.qty,
+      time: o.dt.split(', ')[1] || '',
+      comm: o.comm,
+    }));
+
+    // Build partialExits with per-exit P&L
+    const mult = isOption ? 100 : 1;
+    const partialExits = closes.map(c => {
+      // Use IBKR's realized P&L per close row, or calculate from avg entry
+      const gross = c.realizedPnl !== 0 ? c.realizedPnl : (c.price - avgEntry) * c.qty * mult;
+      const pnl = Math.round((c.realizedPnl || (gross - c.comm)) * 100) / 100;
+      return {
+        price: c.price,
+        qty: c.qty,
+        time: c.dt.split(', ')[1] || '',
+        comm: c.comm,
+        pnl,
+      };
+    });
+
+    // Only use partialEntries/Exits arrays if there are actually multiple fills
+    const usePartialEntries = partialEntries.length > 0;
+    const usePartialExits = partialExits.length > 1;
+
+    const trade = {
+      id: Date.now() + Math.random(),
+      sym: underlying,
+      fullSymbol: sym,
+      date: firstOpen.dt.split(', ')[0] || '',
+      entryTime: firstOpen.dt.split(', ')[1] || '',
+      exitTime: closes[closes.length-1].dt.split(', ')[1] || '',
+      instrument: isOption ? 'OPTION' : 'STOCK',
+      dir: 'LONG',
+      entry: firstOpen.price,
+      exit: closes.length === 1 ? closes[0].price : null,
+      size: isOption ? null : totalOpenQty,
+      contracts: isOption ? totalOpenQty : null,
+      commissions: Math.round((totalEntryComm + totalExitComm) * 100) / 100,
+      commEntry: totalEntryComm,
+      commExit: totalExitComm,
+      pnl: totalPnl,
+      partialEntries: usePartialEntries ? partialEntries : [],
+      partialExits: usePartialExits ? partialExits : [],
+      optionType,
+      strike: strike ? parseFloat(strike) : null,
+      expiry,
+      iv: null, delta: null, dte: null,
+      strategy: '', setup: '',
+      outcome: totalPnl > 0 ? 'WIN' : totalPnl < 0 ? 'LOSS' : 'BREAKEVEN',
+      rr: null, sl: null, tp: null, notes: '', mistake: '', conviction: null
+    };
+
+    result.push(trade);
   });
   return result;
 }
