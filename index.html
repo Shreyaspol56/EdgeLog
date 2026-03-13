@@ -697,14 +697,12 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 if (typeof supabase === 'undefined') {
-  document.body.innerHTML = '<div style="color:#ff4466;font-family:monospace;padding:40px;font-size:14px">⚠ Failed to load Supabase library. Please check your internet connection and refresh.</div>';
+  document.body.innerHTML = '<div style="color:#ff4466;font-family:monospace;padding:40px;font-size:14px">⚠ Failed to load Supabase. Check internet connection and refresh.</div>';
   throw new Error('Supabase not loaded');
 }
-</script>
-<script>
 // ============================================================
 // SUPABASE CONFIG
 // ============================================================
@@ -1453,7 +1451,7 @@ async function deletePartialEntry(tradeId, entryIndex) {
   showToast('Scaled entry removed.');
 }
 
-
+function renderDashboard() {
   document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
   const totalPnl = trades.reduce((s,t) => s+t.pnl, 0);
   const wins = trades.filter(t => t.pnl > 0).length;
