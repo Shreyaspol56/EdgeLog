@@ -697,7 +697,13 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+<script>
+if (typeof supabase === 'undefined') {
+  document.body.innerHTML = '<div style="color:#ff4466;font-family:monospace;padding:40px;font-size:14px">⚠ Failed to load Supabase library. Please check your internet connection and refresh.</div>';
+  throw new Error('Supabase not loaded');
+}
+</script>
 <script>
 // ============================================================
 // SUPABASE CONFIG
@@ -753,21 +759,24 @@ async function authSubmit() {
 
   btn.style.display = 'none'; loading.style.display = 'block'; errEl.classList.remove('show');
 
-  let result;
-  if (tab === 'signup') {
-    result = await sb.auth.signUp({ email, password });
-    if (!result.error && result.data.user && !result.data.session) {
-      // Email confirmation required
-      btn.style.display = 'block'; loading.style.display = 'none';
-      showAuthError('✓ Check your email for a confirmation link, then sign in.', true);
-      return;
+  try {
+    let result;
+    if (tab === 'signup') {
+      result = await sb.auth.signUp({ email, password });
+      if (!result.error && result.data.user && !result.data.session) {
+        btn.style.display = 'block'; loading.style.display = 'none';
+        showAuthError('✓ Check your email for a confirmation link, then sign in.', true);
+        return;
+      }
+    } else {
+      result = await sb.auth.signInWithPassword({ email, password });
     }
-  } else {
-    result = await sb.auth.signInWithPassword({ email, password });
+    btn.style.display = 'block'; loading.style.display = 'none';
+    if (result.error) { showAuthError(result.error.message); return; }
+  } catch(e) {
+    btn.style.display = 'block'; loading.style.display = 'none';
+    showAuthError('Connection error: ' + e.message);
   }
-
-  btn.style.display = 'block'; loading.style.display = 'none';
-  if (result.error) { showAuthError(result.error.message); return; }
   // onAuthStateChange will handle the rest
 }
 
