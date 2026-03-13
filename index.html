@@ -243,14 +243,14 @@
             <div class="panel-title" style="margin-bottom:0">Overall Account Balance</div>
             <div id="account-chart-label" style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px"></div>
           </div>
-          <canvas id="chart-account" height="110"></canvas>
+          <div style="position:relative;height:160px"><canvas id="chart-account"></canvas></div>
         </div>
         <div class="panel">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
             <div class="panel-title" style="margin-bottom:0">This Month P&L</div>
             <div id="month-chart-label" style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px"></div>
           </div>
-          <canvas id="chart-month" height="110"></canvas>
+          <div style="position:relative;height:160px"><canvas id="chart-month"></canvas></div>
         </div>
       </div>
 
@@ -729,13 +729,16 @@ async function signOut() {
 // Auth state listener — fires on page load and on sign in/out
 sb.auth.onAuthStateChange(async (event, session) => {
   if (session?.user) {
-    currentUser = session.user;
-    document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('user-email-display').textContent = currentUser.email;
-    await loadAllFromCloud();
-    renderDashboard();
-    renderCalendar();
-  } else {
+    // Only load data on initial sign in or page load, not on token refresh
+    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+      currentUser = session.user;
+      document.getElementById('auth-screen').style.display = 'none';
+      document.getElementById('user-email-display').textContent = currentUser.email;
+      await loadAllFromCloud();
+      renderDashboard();
+      renderCalendar();
+    }
+  } else if (event === 'SIGNED_OUT') {
     currentUser = null;
     document.getElementById('auth-screen').style.display = 'flex';
   }
