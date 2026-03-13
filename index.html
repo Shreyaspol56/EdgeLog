@@ -433,7 +433,7 @@
 <div class="modal-overlay" id="modal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Log Trade</div>
+      <div class="modal-title" id="modal-title">Log Trade</div>
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="form-grid">
@@ -593,7 +593,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn-outline" onclick="closeModal()">Cancel</button>
-      <button class="btn" onclick="logTrade()">Log Trade</button>
+      <button class="btn" id="modal-submit-btn" onclick="logTrade()">Log Trade</button>
     </div>
   </div>
 </div>
@@ -1086,10 +1086,52 @@ function showView(id, el) {
 }
 
 function openModal() {
+  editingTradeId = null;
+  document.getElementById('modal-title').textContent = 'Log Trade';
+  document.getElementById('modal-submit-btn').textContent = 'Log Trade';
   document.getElementById('modal').classList.add('open');
   document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
 }
-function closeModal() { document.getElementById('modal').classList.remove('open'); }
+function closeModal() { document.getElementById('modal').classList.remove('open'); editingTradeId = null; }
+
+let editingTradeId = null;
+
+function editTrade(id) {
+  const t = trades.find(t => t.id == id);
+  if (!t) return;
+  editingTradeId = id;
+  document.getElementById('modal-title').textContent = 'Edit Trade';
+  document.getElementById('modal-submit-btn').textContent = 'Save Changes';
+  document.getElementById('modal').classList.add('open');
+
+  document.getElementById('f-symbol').value = t.sym || '';
+  document.getElementById('f-date').value = t.date || '';
+  document.getElementById('f-entry-time').value = t.entryTime || '';
+  document.getElementById('f-exit-time').value = t.exitTime || '';
+  document.getElementById('f-instrument').value = t.instrument || 'STOCK';
+  document.getElementById('f-direction').value = t.dir || 'LONG';
+  document.getElementById('f-entry').value = t.entry || '';
+  document.getElementById('f-exit').value = t.exit || '';
+  document.getElementById('f-size').value = t.size || '';
+  document.getElementById('f-comm-entry').value = t.commEntry || '';
+  document.getElementById('f-comm-exit').value = t.commExit || '';
+  document.getElementById('f-sl').value = t.sl || '';
+  document.getElementById('f-tp').value = t.tp || '';
+  document.getElementById('f-option-type').value = t.optionType || 'CALL';
+  document.getElementById('f-contracts').value = t.contracts || '';
+  document.getElementById('f-strike').value = t.strike || '';
+  document.getElementById('f-expiry').value = t.expiry || '';
+  document.getElementById('f-iv').value = t.iv || '';
+  document.getElementById('f-delta').value = t.delta || '';
+  document.getElementById('f-dte').value = t.dte || '';
+  document.getElementById('f-strategy').value = t.strategy || '';
+  document.getElementById('f-setup').value = t.setup || '';
+  document.getElementById('f-outcome').value = t.outcome || '';
+  document.getElementById('f-notes').value = t.notes || '';
+  document.getElementById('f-mistake').value = t.mistake || '';
+  document.getElementById('f-conviction').value = t.conviction || '';
+  toggleOptionsFields();
+}
 
 function toggleOptionsFields() {
   document.getElementById('options-fields').classList.toggle('visible', document.getElementById('f-instrument').value === 'OPTION');
@@ -1145,11 +1187,23 @@ function logTrade() {
     mistake: document.getElementById('f-mistake').value,
     conviction: parseInt(document.getElementById('f-conviction').value) || null
   };
-  trades.push(trade);
-  cloudUpsertTrade(trade);
-  closeModal();
-  showToast(`${sym} logged: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
-  renderDashboard(); clearForm();
+  if (editingTradeId !== null) {
+    // Edit existing trade
+    const idx = trades.findIndex(t => t.id == editingTradeId);
+    if (idx !== -1) {
+      trades[idx] = { ...trades[idx], ...trade, id: trades[idx].id,
+        partialEntries: trades[idx].partialEntries || [],
+        partialExits: trades[idx].partialExits || [] };
+      cloudUpsertTrade(trades[idx]);
+      showToast(`${sym} updated`);
+    }
+    editingTradeId = null;
+  } else {
+    trades.push(trade);
+    cloudUpsertTrade(trade);
+    showToast(`${sym} logged: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
+  }
+  closeModal(); renderDashboard(); renderTradesTable(); clearForm();
 }
 
 function clearForm() {
@@ -1522,6 +1576,7 @@ function renderTradesTable() {
     <td>${t.rr?t.rr+':1':'—'}</td>
     <td>${t.setup?`<span class="tag">${t.setup}</span>`:'—'}</td>
     <td style="display:flex;gap:3px;align-items:center;flex-wrap:wrap">
+      <button class="icon-btn" style="border-color:var(--muted);color:var(--muted);font-size:9px" onclick="editTrade(${t.id})">✎</button>
       <button class="icon-btn" style="border-color:var(--win);color:var(--win);font-size:9px" onclick="openEntryModal(${t.id})">+ In</button>
       <button class="icon-btn" style="border-color:var(--accent3);color:var(--accent3);font-size:9px" onclick="openExitModal(${t.id})">+ Out</button>
       <button class="icon-btn" onclick="deleteTrade(${t.id})">✕</button>
@@ -1729,19 +1784,27 @@ function parseIBKR(text){
   // Parse all lines into structured rows
   const parse = l => parseCsvLine(l.replace(/^\uFEFF/,''));
 
-  // Get Trades section header
+  // Get Trades section header (take first one)
   const tradeHeaderLine = lines.find(l=>l.startsWith('Trades,Header,'));
   if(!tradeHeaderLine) return null;
   const tradeHeaders = parse(tradeHeaderLine).slice(2); // skip "Trades,Header"
 
-  // Get Financial Instrument Info for option details
-  const fiHeaderLine = lines.find(l=>l.startsWith('Financial Instrument Information,Header,'));
-  const fiHeaders = fiHeaderLine ? parse(fiHeaderLine).slice(2) : [];
-  const fiMap = {}; // description -> {type, strike, expiry, underlying}
-  lines.filter(l=>l.startsWith('Financial Instrument Information,Data,')).forEach(l=>{
-    const cols = parse(l).slice(2);
-    const obj = {}; fiHeaders.forEach((h,j)=>obj[h]=cols[j]);
-    fiMap[obj['Description']] = obj;
+  // Get Financial Instrument Info — there may be MULTIPLE header lines (one per asset class)
+  // Each data row must be matched to the correct header based on proximity or asset category
+  // Build a map: for each data row, find the most recent header line above it
+  const fiMap = {}; // description -> parsed obj
+  let currentFiHeaders = [];
+  lines.forEach(l => {
+    if (l.startsWith('Financial Instrument Information,Header,')) {
+      currentFiHeaders = parse(l).slice(2);
+    } else if (l.startsWith('Financial Instrument Information,Data,') && currentFiHeaders.length) {
+      const cols = parse(l).slice(2);
+      const obj = {};
+      currentFiHeaders.forEach((h,j) => obj[h] = cols[j]);
+      // Key by both Description and Symbol for reliable lookup
+      if (obj['Description']) fiMap[obj['Description']] = obj;
+      if (obj['Symbol']) fiMap[obj['Symbol']] = obj;
+    }
   });
 
   // Get only Order rows (not SubTotal/Total)
@@ -1752,8 +1815,7 @@ function parseIBKR(text){
     return obj;
   });
 
-  // Group by symbol, then pair Opens with Closes using FIFO queue
-  // This correctly handles: buying 2 then selling 1+1 (scaling out), or buying 1+1 then selling 2 together
+  // Group rows by symbol
   const bySymbol = {};
   orderRows.forEach(r=>{
     const sym = r['Symbol'];
@@ -1763,105 +1825,104 @@ function parseIBKR(text){
 
   const result = [];
   Object.entries(bySymbol).forEach(([sym, rows])=>{
+    // Look up FI info — try description match first, then symbol
     const fi = fiMap[sym] || {};
     const underlying = fi['Underlying'] || sym.split(' ')[0];
     const optionType = fi['Type'] === 'C' ? 'CALL' : fi['Type'] === 'P' ? 'PUT' : null;
     const strike = fi['Strike'] || null;
     const expiry = fi['Expiry'] || null;
-    const isOption = !!(fi['Type']);
+    const isOption = !!(fi['Type'] && (fi['Type']==='C' || fi['Type']==='P'));
 
-    // Collect all opens and closes
-    const opens = [];
-    const closes = [];
+    // Split rows into sessions: a new session starts when all previously opened qty is fully closed
+    // before new opens appear (e.g. same symbol traded twice on different days)
+    const sessions = [];
+    let sessionRows = [];
+    let openBalance = 0;
 
     rows.forEach(r => {
       const qty = parseFloat(r['Quantity']) || 0;
-      const price = parseFloat(r['T. Price']) || 0;
-      const comm = Math.abs(parseFloat(r['Comm/Fee']) || 0);
-      const dt = (r['Date/Time']||'').replace(/"/g,'').trim();
-      const realizedPnl = parseFloat(r['Realized P/L']) || 0;
-      if (qty > 0) opens.push({ qty, price, comm, dt });
-      else if (qty < 0) closes.push({ qty: Math.abs(qty), price, comm, dt, realizedPnl });
+      sessionRows.push(r);
+      openBalance += qty; // positive for opens, negative for closes
+      // When openBalance returns to 0, session is complete
+      if (openBalance === 0 && sessionRows.length > 0) {
+        sessions.push([...sessionRows]);
+        sessionRows = [];
+      }
     });
+    // Any remaining rows = uncompleted session (still open), skip
+    // sessions now contains completed trade groups
 
-    if (opens.length === 0 || closes.length === 0) return; // skip uncompleted
+    sessions.forEach(sessionRowList => {
+      const opens = [];
+      const closes = [];
 
-    // Build one trade per contiguous open session
-    // Group into "sessions" — a new session starts if all opens are fully closed before new opens appear
-    // Simple approach: one trade per symbol, all opens = partialEntries, all closes = partialExits
-    const firstOpen = opens[0];
-    const totalOpenQty = opens.reduce((s,o)=>s+o.qty, 0);
-    const totalCloseQty = closes.reduce((s,c)=>s+c.qty, 0);
+      sessionRowList.forEach(r => {
+        const qty = parseFloat(r['Quantity']) || 0;
+        const price = parseFloat(r['T. Price']) || 0;
+        const comm = Math.abs(parseFloat(r['Comm/Fee']) || 0);
+        const dt = (r['Date/Time']||'').replace(/"/g,'').trim();
+        const realizedPnl = parseFloat(r['Realized P/L']) || 0;
+        if (qty > 0) opens.push({ qty, price, comm, dt });
+        else if (qty < 0) closes.push({ qty: Math.abs(qty), price, comm, dt, realizedPnl });
+      });
 
-    // Weighted avg entry
-    const totalEntryCost = opens.reduce((s,o)=>s+o.price*o.qty, 0);
-    const avgEntry = totalEntryCost / totalOpenQty;
+      if (opens.length === 0 || closes.length === 0) return;
 
-    // Total entry commission
-    const totalEntryComm = opens.reduce((s,o)=>s+o.comm, 0);
+      const firstOpen = opens[0];
+      const totalOpenQty = opens.reduce((s,o)=>s+o.qty, 0);
+      const totalEntryCost = opens.reduce((s,o)=>s+o.price*o.qty, 0);
+      const avgEntry = totalEntryCost / totalOpenQty;
+      const totalEntryComm = opens.reduce((s,o)=>s+o.comm, 0);
+      const totalExitComm = closes.reduce((s,c)=>s+c.comm, 0);
+      const totalPnl = Math.round(closes.reduce((s,c)=>s+c.realizedPnl, 0) * 100) / 100;
 
-    // Total realized P&L from IBKR (most accurate)
-    const totalPnl = Math.round(closes.reduce((s,c)=>s+c.realizedPnl, 0) * 100) / 100;
+      // partialEntries = all buys except the first
+      const partialEntries = opens.slice(1).map(o => ({
+        price: o.price, qty: o.qty,
+        time: o.dt.split(', ')[1] || '',
+        comm: o.comm,
+      }));
 
-    // Total exit commission
-    const totalExitComm = closes.reduce((s,c)=>s+c.comm, 0);
-
-    // Build partialEntries (all except the first, which becomes the main entry)
-    const partialEntries = opens.slice(1).map(o => ({
-      price: o.price,
-      qty: o.qty,
-      time: o.dt.split(', ')[1] || '',
-      comm: o.comm,
-    }));
-
-    // Build partialExits with per-exit P&L
-    const mult = isOption ? 100 : 1;
-    const partialExits = closes.map(c => {
-      // Use IBKR's realized P&L per close row, or calculate from avg entry
-      const gross = c.realizedPnl !== 0 ? c.realizedPnl : (c.price - avgEntry) * c.qty * mult;
-      const pnl = Math.round((c.realizedPnl || (gross - c.comm)) * 100) / 100;
-      return {
-        price: c.price,
-        qty: c.qty,
+      // partialExits = all sells (use IBKR realized P&L per close row)
+      const mult = isOption ? 100 : 1;
+      const partialExits = closes.map(c => ({
+        price: c.price, qty: c.qty,
         time: c.dt.split(', ')[1] || '',
         comm: c.comm,
-        pnl,
-      };
+        pnl: Math.round(c.realizedPnl * 100) / 100,
+      }));
+
+      const usePartialEntries = partialEntries.length > 0;
+      const usePartialExits = partialExits.length > 1;
+
+      result.push({
+        id: Date.now() + Math.random(),
+        sym: underlying,
+        fullSymbol: sym,
+        date: firstOpen.dt.split(', ')[0] || '',
+        entryTime: firstOpen.dt.split(', ')[1] || '',
+        exitTime: closes[closes.length-1].dt.split(', ')[1] || '',
+        instrument: isOption ? 'OPTION' : 'STOCK',
+        dir: 'LONG',
+        entry: firstOpen.price,
+        exit: closes.length === 1 ? closes[0].price : null,
+        size: isOption ? null : totalOpenQty,
+        contracts: isOption ? totalOpenQty : null,
+        commissions: Math.round((totalEntryComm + totalExitComm) * 100) / 100,
+        commEntry: totalEntryComm,
+        commExit: totalExitComm,
+        pnl: totalPnl,
+        partialEntries: usePartialEntries ? partialEntries : [],
+        partialExits: usePartialExits ? partialExits : [],
+        optionType,
+        strike: strike ? parseFloat(strike) : null,
+        expiry,
+        iv: null, delta: null, dte: null,
+        strategy: '', setup: '',
+        outcome: totalPnl > 0 ? 'WIN' : totalPnl < 0 ? 'LOSS' : 'BREAKEVEN',
+        rr: null, sl: null, tp: null, notes: '', mistake: '', conviction: null
+      });
     });
-
-    // Only use partialEntries/Exits arrays if there are actually multiple fills
-    const usePartialEntries = partialEntries.length > 0;
-    const usePartialExits = partialExits.length > 1;
-
-    const trade = {
-      id: Date.now() + Math.random(),
-      sym: underlying,
-      fullSymbol: sym,
-      date: firstOpen.dt.split(', ')[0] || '',
-      entryTime: firstOpen.dt.split(', ')[1] || '',
-      exitTime: closes[closes.length-1].dt.split(', ')[1] || '',
-      instrument: isOption ? 'OPTION' : 'STOCK',
-      dir: 'LONG',
-      entry: firstOpen.price,
-      exit: closes.length === 1 ? closes[0].price : null,
-      size: isOption ? null : totalOpenQty,
-      contracts: isOption ? totalOpenQty : null,
-      commissions: Math.round((totalEntryComm + totalExitComm) * 100) / 100,
-      commEntry: totalEntryComm,
-      commExit: totalExitComm,
-      pnl: totalPnl,
-      partialEntries: usePartialEntries ? partialEntries : [],
-      partialExits: usePartialExits ? partialExits : [],
-      optionType,
-      strike: strike ? parseFloat(strike) : null,
-      expiry,
-      iv: null, delta: null, dte: null,
-      strategy: '', setup: '',
-      outcome: totalPnl > 0 ? 'WIN' : totalPnl < 0 ? 'LOSS' : 'BREAKEVEN',
-      rr: null, sl: null, tp: null, notes: '', mistake: '', conviction: null
-    };
-
-    result.push(trade);
   });
   return result;
 }
