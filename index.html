@@ -324,21 +324,39 @@
     <!-- ANALYTICS -->
     <div id="view-analytics" class="view">
       <div class="page-header"><div><div class="page-title">Analytics</div><div class="page-subtitle">Performance breakdown</div></div></div>
+
+      <!-- ROW 1 -->
       <div class="two-col" style="margin-bottom:24px">
         <div class="panel"><div class="panel-title">P&L by Setup Tag</div><div class="bar-chart" id="analytics-tags"></div></div>
-        <div class="panel"><div class="panel-title">Calls vs Puts vs Stock</div><div class="bar-chart" id="analytics-direction"></div></div>
+        <div class="panel"><div class="panel-title">P&L by Market Condition</div><div class="bar-chart" id="analytics-condition"></div></div>
       </div>
+
+      <!-- ROW 2 -->
       <div class="two-col" style="margin-bottom:24px">
-        <div class="panel"><div class="panel-title">Win / Loss Distribution</div><div id="analytics-wl"></div></div>
+        <div class="panel"><div class="panel-title">P&L by Time of Day</div><div class="bar-chart" id="analytics-timeofday"></div></div>
+        <div class="panel"><div class="panel-title">P&L by Day of Week</div><div class="bar-chart" id="analytics-dayofweek"></div></div>
+      </div>
+
+      <!-- ROW 3 -->
+      <div class="two-col" style="margin-bottom:24px">
+        <div class="panel"><div class="panel-title">Trade # of the Day Performance</div><div id="analytics-tradenum"></div></div>
+        <div class="panel"><div class="panel-title">Win / Loss Streak</div><div id="analytics-streak"></div></div>
+      </div>
+
+      <!-- ROW 4 -->
+      <div class="two-col" style="margin-bottom:24px">
+        <div class="panel"><div class="panel-title">Calls vs Puts</div><div class="bar-chart" id="analytics-direction"></div></div>
         <div class="panel"><div class="panel-title">Top Symbols by P&L</div><div class="bar-chart" id="analytics-symbols"></div></div>
       </div>
+
+      <!-- ROW 5 -->
       <div class="two-col">
         <div class="panel">
           <div class="panel-title">Avg Hold Time — Winners vs Losers</div>
           <div id="analytics-holdtime"><div style="color:var(--muted);font-size:12px">Requires entry & exit time on trades</div></div>
         </div>
         <div class="panel">
-          <div class="panel-title">Avg Win Amount vs Avg Loss Amount</div>
+          <div class="panel-title">Avg Win vs Avg Loss</div>
           <div id="analytics-avgpnl"><div style="color:var(--muted);font-size:12px">No data yet</div></div>
         </div>
       </div>
@@ -441,7 +459,7 @@
       <div class="modal-section">Basic Info</div>
       <div class="form-group">
         <label class="form-label">Underlying Symbol</label>
-        <input type="text" class="form-input" id="f-symbol" placeholder="SPY, TSLA, QQQ...">
+        <input type="text" class="form-input" id="f-symbol" placeholder="SPY, QQQ, TSLA...">
       </div>
       <div class="form-group">
         <label class="form-label">Trade Date</label>
@@ -452,88 +470,39 @@
         <input type="time" class="form-input" id="f-entry-time">
       </div>
       <div class="form-group">
-        <label class="form-label">Exit Time</label>
+        <label class="form-label">Exit Time <span style="color:var(--muted);font-size:10px">— blank if scaling out</span></label>
         <input type="time" class="form-input" id="f-exit-time">
       </div>
 
-      <div class="modal-section">Instrument</div>
+      <div class="modal-section">Option Details</div>
       <div class="form-group">
-        <label class="form-label">Instrument Type</label>
-        <select class="form-select" id="f-instrument" onchange="toggleOptionsFields()">
-          <option value="STOCK">Stock / ETF</option>
-          <option value="OPTION">Options</option>
-          <option value="FUTURES">Futures</option>
-          <option value="CRYPTO">Crypto</option>
-          <option value="FOREX">Forex</option>
+        <label class="form-label">CALL or PUT</label>
+        <select class="form-select" id="f-option-type">
+          <option value="CALL">CALL</option>
+          <option value="PUT">PUT</option>
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Direction</label>
-        <select class="form-select" id="f-direction">
-          <option value="LONG">LONG / BUY</option>
-          <option value="SHORT">SHORT / SELL</option>
-        </select>
+        <label class="form-label">Strike Price</label>
+        <input type="number" class="form-input" id="f-strike" placeholder="450.00" step="0.5">
       </div>
-
-      <!-- OPTIONS FIELDS (shown when instrument = OPTION) -->
-      <div class="options-fields" id="options-fields">
-        <div class="modal-section">Options Details</div>
-        <div class="form-group">
-          <label class="form-label">Option Type</label>
-          <select class="form-select" id="f-option-type">
-            <option value="CALL">CALL</option>
-            <option value="PUT">PUT</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Strike Price</label>
-          <input type="number" class="form-input" id="f-strike" placeholder="450.00" step="0.5">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Expiration Date</label>
-          <input type="date" class="form-input" id="f-expiry">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Contracts (× 100 multiplier)</label>
-          <input type="number" class="form-input" id="f-contracts" placeholder="1" min="1" step="1">
-        </div>
-        <div class="form-group">
-          <label class="form-label">IV at Entry (%)</label>
-          <input type="number" class="form-input" id="f-iv" placeholder="e.g. 45.2" step="0.1">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Delta at Entry</label>
-          <input type="number" class="form-input" id="f-delta" placeholder="e.g. 0.35" step="0.01">
-        </div>
-        <div class="form-group">
-          <label class="form-label">DTE at Entry</label>
-          <input type="number" class="form-input" id="f-dte" placeholder="Days to expiry" min="0">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Options Strategy</label>
-          <select class="form-select" id="f-strategy">
-            <option value="">— Select —</option>
-            <option>Long Call</option><option>Long Put</option><option>Covered Call</option>
-            <option>Cash Secured Put</option><option>Bull Call Spread</option><option>Bear Put Spread</option>
-            <option>Iron Condor</option><option>Iron Butterfly</option><option>Straddle</option>
-            <option>Strangle</option><option>Calendar Spread</option><option>Diagonal Spread</option>
-            <option>PMCC</option><option>Debit Spread</option><option>Credit Spread</option>
-          </select>
-        </div>
+      <div class="form-group">
+        <label class="form-label">Contracts <span style="color:var(--muted);font-size:10px">— initial position</span></label>
+        <input type="number" class="form-input" id="f-contracts" placeholder="1" min="1" step="1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Underlying Price at Entry</label>
+        <input type="number" class="form-input" id="f-underlying-price" placeholder="e.g. 487.50" step="0.01">
       </div>
 
       <div class="modal-section">Execution & Pricing</div>
       <div class="form-group">
-        <label class="form-label">Entry Price (per share / contract)</label>
+        <label class="form-label">Entry Price (per contract)</label>
         <input type="number" class="form-input" id="f-entry" placeholder="0.00" step="0.01">
       </div>
       <div class="form-group">
-        <label class="form-label">Exit Price (per share / contract) <span style="color:var(--muted);font-size:10px">— leave blank if scaling out</span></label>
-        <input type="number" class="form-input" id="f-exit" placeholder="0.00 (optional if scaling out)" step="0.01">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Shares / Qty (non-options)</label>
-        <input type="number" class="form-input" id="f-size" placeholder="100" step="1">
+        <label class="form-label">Exit Price <span style="color:var(--muted);font-size:10px">— blank if scaling out</span></label>
+        <input type="number" class="form-input" id="f-exit" placeholder="0.00" step="0.01">
       </div>
       <div class="form-group">
         <label class="form-label">Entry Commission ($)</label>
@@ -544,42 +513,52 @@
         <input type="number" class="form-input" id="f-comm-exit" placeholder="0.00" step="0.01" min="0">
       </div>
       <div class="form-group">
-        <label class="form-label">Stop Loss</label>
+        <label class="form-label">Stop Loss <span style="color:var(--muted);font-size:10px">— option price</span></label>
         <input type="number" class="form-input" id="f-sl" placeholder="0.00" step="0.01">
       </div>
-      <div class="form-group">
-        <label class="form-label">Take Profit</label>
-        <input type="number" class="form-input" id="f-tp" placeholder="0.00" step="0.01">
-      </div>
 
-      <div class="modal-section">Tagging</div>
+      <div class="modal-section">Trade Context</div>
       <div class="form-group">
         <label class="form-label">Setup Tag</label>
         <select class="form-select" id="f-setup">
-          <option value="">None</option>
-          <option>Breakout</option><option>Pullback</option><option>Reversal</option>
-          <option>Momentum</option><option>Gap Fill</option><option>VWAP Reclaim</option>
-          <option>Support/Resistance</option><option>Trend Follow</option><option>Scalp</option>
-          <option>News Play</option><option>Earnings Play</option><option>IV Crush</option>
-          <option>Theta Play</option><option>Hedge</option>
+          <option value="">— Select —</option>
+          <option>PDH Breakout</option>
+          <option>PDL Breakdown</option>
+          <option>Pre-market High Break</option>
+          <option>Pre-market Low Break</option>
+          <option>Opening Range Breakout</option>
+          <option>VWAP Breakout</option>
+          <option>Consolidation Break</option>
+          <option>Range Expansion</option>
+          <option>Gap and Go</option>
+          <option>S/R Level Break</option>
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Outcome</label>
-        <select class="form-select" id="f-outcome">
-          <option value="WIN">WIN</option>
-          <option value="LOSS">LOSS</option>
-          <option value="BREAKEVEN">BREAKEVEN</option>
+        <label class="form-label">Market Condition</label>
+        <select class="form-select" id="f-market-condition">
+          <option value="">— Select —</option>
+          <option>Trending</option>
+          <option>Choppy</option>
+          <option>Ranging</option>
         </select>
       </div>
       <div class="form-group">
         <label class="form-label">Mistake Tagged</label>
         <select class="form-select" id="f-mistake">
           <option value="">None</option>
-          <option>Early Entry</option><option>Late Entry</option><option>Moved Stop</option>
-          <option>Sized Too Big</option><option>FOMO Entry</option><option>Held Too Long</option>
-          <option>Cut Too Early</option><option>Revenge Trade</option><option>No Setup</option>
-          <option>Chased IV</option><option>Wrong Expiry</option><option>Wrong Strike</option>
+          <option>Early Entry</option>
+          <option>Late Entry</option>
+          <option>Moved Stop</option>
+          <option>Sized Too Big</option>
+          <option>FOMO Entry</option>
+          <option>Held Too Long</option>
+          <option>Cut Too Early</option>
+          <option>Revenge Trade</option>
+          <option>No Setup</option>
+          <option>Chased Move</option>
+          <option>Wrong Direction</option>
+          <option>Broke Rules</option>
         </select>
       </div>
       <div class="form-group">
@@ -588,8 +567,20 @@
       </div>
       <div class="form-group full">
         <label class="form-label">Notes</label>
-        <textarea class="form-textarea" id="f-notes" placeholder="Why did you take this trade? What was the thesis?"></textarea>
+        <textarea class="form-textarea" id="f-notes" placeholder="What was the setup? Where was the breakout level? What happened?"></textarea>
       </div>
+
+      <!-- Hidden fields kept for CSV import compatibility -->
+      <input type="hidden" id="f-instrument" value="OPTION">
+      <input type="hidden" id="f-direction" value="LONG">
+      <input type="hidden" id="f-size" value="1">
+      <input type="hidden" id="f-iv" value="">
+      <input type="hidden" id="f-delta" value="">
+      <input type="hidden" id="f-dte" value="0">
+      <input type="hidden" id="f-strategy" value="">
+      <input type="hidden" id="f-expiry" value="">
+      <input type="hidden" id="f-outcome" value="">
+      <input type="hidden" id="f-tp" value="">
     </div>
     <div class="modal-footer">
       <button class="btn-outline" onclick="closeModal()">Cancel</button>
@@ -1126,34 +1117,23 @@ function editTrade(id) {
   document.getElementById('f-date').value = t.date || '';
   document.getElementById('f-entry-time').value = t.entryTime || '';
   document.getElementById('f-exit-time').value = t.exitTime || '';
-  document.getElementById('f-instrument').value = t.instrument || 'STOCK';
-  document.getElementById('f-direction').value = t.dir || 'LONG';
+  document.getElementById('f-option-type').value = t.optionType || 'CALL';
+  document.getElementById('f-strike').value = t.strike || '';
+  document.getElementById('f-contracts').value = t.contracts || '';
+  document.getElementById('f-underlying-price').value = t.underlyingPrice || '';
   document.getElementById('f-entry').value = t.entry || '';
   document.getElementById('f-exit').value = t.exit || '';
-  document.getElementById('f-size').value = t.size || '';
   document.getElementById('f-comm-entry').value = t.commEntry || '';
   document.getElementById('f-comm-exit').value = t.commExit || '';
   document.getElementById('f-sl').value = t.sl || '';
-  document.getElementById('f-tp').value = t.tp || '';
-  document.getElementById('f-option-type').value = t.optionType || 'CALL';
-  document.getElementById('f-contracts').value = t.contracts || '';
-  document.getElementById('f-strike').value = t.strike || '';
-  document.getElementById('f-expiry').value = t.expiry || '';
-  document.getElementById('f-iv').value = t.iv || '';
-  document.getElementById('f-delta').value = t.delta || '';
-  document.getElementById('f-dte').value = t.dte || '';
-  document.getElementById('f-strategy').value = t.strategy || '';
   document.getElementById('f-setup').value = t.setup || '';
-  document.getElementById('f-outcome').value = t.outcome || '';
-  document.getElementById('f-notes').value = t.notes || '';
+  document.getElementById('f-market-condition').value = t.marketCondition || '';
   document.getElementById('f-mistake').value = t.mistake || '';
   document.getElementById('f-conviction').value = t.conviction || '';
-  toggleOptionsFields();
+  document.getElementById('f-notes').value = t.notes || '';
 }
 
-function toggleOptionsFields() {
-  document.getElementById('options-fields').classList.toggle('visible', document.getElementById('f-instrument').value === 'OPTION');
-}
+function toggleOptionsFields() {} // no-op, kept for compatibility
 
 function logTrade() {
   const sym = document.getElementById('f-symbol').value.trim().toUpperCase();
@@ -1162,27 +1142,28 @@ function logTrade() {
 
   const entryTime = document.getElementById('f-entry-time').value;
   const exitTime = document.getElementById('f-exit-time').value;
-  const instrument = document.getElementById('f-instrument').value;
-  const dir = document.getElementById('f-direction').value;
+  const instrument = 'OPTION';
+  const dir = 'LONG';
   const entry = parseFloat(document.getElementById('f-entry').value);
-  const exit = parseFloat(document.getElementById('f-exit').value);
-  const size = parseFloat(document.getElementById('f-size').value) || 1;
+  const exit = parseFloat(document.getElementById('f-exit').value) || null;
+  const contracts = parseFloat(document.getElementById('f-contracts').value) || 1;
   const commEntry = parseFloat(document.getElementById('f-comm-entry').value) || 0;
   const commExit = parseFloat(document.getElementById('f-comm-exit').value) || 0;
   const commissions = Math.round((commEntry + commExit) * 100) / 100;
   const sl = parseFloat(document.getElementById('f-sl').value) || null;
+  const underlyingPrice = parseFloat(document.getElementById('f-underlying-price').value) || null;
 
-  if (isNaN(entry) || isNaN(exit)) { showToast('Entry and exit prices are required.', true); return; }
+  if (isNaN(entry)) { showToast('Entry price is required.', true); return; }
 
-  const optionType = document.getElementById('f-option-type').value;
-  const contracts = parseFloat(document.getElementById('f-contracts').value) || null;
-
-  const mult = (instrument === 'OPTION' && contracts) ? contracts * 100 : size;
-  let grossPnl = dir === 'LONG' ? (exit - entry) * mult : (entry - exit) * mult;
-  const pnl = Math.round((grossPnl - commissions) * 100) / 100;
+  const mult = contracts * 100;
+  let pnl = 0;
+  if (exit) {
+    const grossPnl = (exit - entry) * mult;
+    pnl = Math.round((grossPnl - commissions) * 100) / 100;
+  }
 
   let rr = null;
-  if (sl) {
+  if (sl && exit) {
     const risk = Math.abs(entry - sl) * mult;
     const reward = Math.abs(exit - entry) * mult;
     if (risk > 0) rr = Math.round(reward / risk * 100) / 100;
@@ -1190,20 +1171,22 @@ function logTrade() {
 
   const trade = {
     id: Date.now(), sym, date, entryTime, exitTime, instrument, dir,
-    entry, exit, size, contracts, multiplier: mult, commissions, commEntry, commExit, pnl, sl,
-    tp: parseFloat(document.getElementById('f-tp').value) || null, rr,
-    optionType: instrument === 'OPTION' ? optionType : null,
+    entry, exit: exit || 0, size: 1, contracts, multiplier: mult,
+    commissions, commEntry, commExit, pnl, sl, tp: null, rr,
+    optionType: document.getElementById('f-option-type').value,
     strike: parseFloat(document.getElementById('f-strike').value) || null,
-    expiry: document.getElementById('f-expiry').value,
-    iv: parseFloat(document.getElementById('f-iv').value) || null,
-    delta: parseFloat(document.getElementById('f-delta').value) || null,
-    dte: parseInt(document.getElementById('f-dte').value) || null,
-    strategy: document.getElementById('f-strategy').value,
+    expiry: date, // 0 DTE — expiry = trade date
+    underlyingPrice,
+    iv: null, delta: null, dte: 0,
+    strategy: '',
     setup: document.getElementById('f-setup').value,
-    outcome: document.getElementById('f-outcome').value,
+    marketCondition: document.getElementById('f-market-condition').value,
+    outcome: pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'BREAKEVEN',
     notes: document.getElementById('f-notes').value,
     mistake: document.getElementById('f-mistake').value,
-    conviction: parseInt(document.getElementById('f-conviction').value) || null
+    conviction: parseInt(document.getElementById('f-conviction').value) || null,
+    partialEntries: [],
+    partialExits: [],
   };
   if (editingTradeId !== null) {
     // Edit existing trade
@@ -1225,14 +1208,14 @@ function logTrade() {
 }
 
 function clearForm() {
-  ['f-symbol','f-entry','f-exit','f-size','f-comm-entry','f-comm-exit','f-sl','f-tp','f-notes','f-conviction',
-   'f-strike','f-contracts','f-iv','f-delta','f-dte','f-entry-time','f-exit-time','f-expiry'].forEach(id => {
+  ['f-symbol','f-entry','f-exit','f-contracts','f-comm-entry','f-comm-exit',
+   'f-sl','f-notes','f-conviction','f-strike','f-entry-time','f-exit-time','f-underlying-price'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
-  ['f-setup','f-mistake','f-strategy'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('f-instrument').value = 'STOCK';
-  document.getElementById('f-direction').value = 'LONG';
-  toggleOptionsFields();
+  ['f-setup','f-mistake','f-market-condition','f-option-type'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  document.getElementById('f-option-type').value = 'CALL';
 }
 
 function deleteTrade(id) {
@@ -1608,7 +1591,11 @@ function renderCalendar() {
   const firstDay = new Date(calYear,calMonth,1).getDay();
   const days = new Date(calYear,calMonth+1,0).getDate();
   const byDate = {};
-  trades.forEach(t=>{ byDate[t.date]=(byDate[t.date]||0)+t.pnl; });
+  const countByDate = {};
+  trades.forEach(t=>{
+    byDate[t.date]=(byDate[t.date]||0)+t.pnl;
+    countByDate[t.date]=(countByDate[t.date]||0)+1;
+  });
   const today = new Date().toISOString().split('T')[0];
 
   // Monthly total
@@ -1632,8 +1619,9 @@ function renderCalendar() {
     let cls = pnl !== undefined ? (pnl >= 0 ? 'win' : 'loss') : '';
     if (ds === today) cls += ' today';
     const ps = pnl !== undefined ? `${pnl>=0?'+':''}$${Math.abs(pnl).toFixed(0)}` : '';
+    const tc = countByDate[ds] ? countByDate[ds] : 0;
     if (pnl !== undefined) weekPnl += pnl;
-    html += `<div class="cal-day ${cls}"><span class="cal-day-num">${d}</span>${ps?`<span class="cal-day-pnl">${ps}</span>`:''}</div>`;
+    html += `<div class="cal-day ${cls}"><span class="cal-day-num">${d}</span>${ps?`<span class="cal-day-pnl">${ps}</span>`:''} ${tc>0?`<span style="font-size:9px;color:var(--muted);display:block">${tc} trade${tc>1?'s':''}</span>`:''}</div>`;
     cellInWeek++;
 
     if (cellInWeek === 7 || d === days) {
@@ -1654,35 +1642,134 @@ function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCalend
 function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCalendar();}
 
 function renderAnalytics() {
+  const noData = '<div style="color:var(--muted);font-size:12px">No data yet</div>';
+  const barChart = (data, maxVal) => Object.entries(data).length
+    ? Object.entries(data).sort((a,b)=>b[1]-a[1]).map(([k,v])=>
+        `<div class="bar-row"><span class="bar-label">${k}</span><div class="bar-track"><div class="bar-fill ${v>=0?'win':'loss'}" style="width:${Math.abs(v)/(maxVal||1)*100}%">${v>=0?'+':''}$${v.toFixed(0)}</div></div></div>`
+      ).join('') : noData;
+
+  // ---- SETUP TAGS ----
   const sp={};
   trades.forEach(t=>{const k=t.setup||'Untagged';sp[k]=(sp[k]||0)+t.pnl;});
-  const tagEl=document.getElementById('analytics-tags');
-  if(!Object.keys(sp).length){tagEl.innerHTML='<div style="color:var(--muted);font-size:12px">No data</div>';}
-  else{const mx=Math.max(...Object.values(sp).map(Math.abs));tagEl.innerHTML=Object.entries(sp).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="bar-row"><span class="bar-label">${k}</span><div class="bar-track"><div class="bar-fill ${v>=0?'win':'loss'}" style="width:${Math.abs(v)/mx*100}%">${v>=0?'+':''}$${v.toFixed(0)}</div></div></div>`).join('');}
+  const mxSp=Math.max(...Object.values(sp).map(Math.abs),1);
+  document.getElementById('analytics-tags').innerHTML=barChart(sp,mxSp);
 
-  const cats={CALL:0,PUT:0,LONG:0,SHORT:0};
+  // ---- MARKET CONDITION ----
+  const mc={};
+  trades.forEach(t=>{const k=t.marketCondition||'Untagged';mc[k]=(mc[k]||0)+t.pnl;});
+  const mxMc=Math.max(...Object.values(mc).map(Math.abs),1);
+  document.getElementById('analytics-condition').innerHTML=barChart(mc,mxMc);
+
+  // ---- TIME OF DAY ----
+  const slots={'9:30–10:00':0,'10:00–11:00':0,'11:00–12:00':0,'12:00–13:00':0,'13:00–14:00':0,'14:00–15:00':0,'15:00–16:00':0};
+  const slotCounts={'9:30–10:00':0,'10:00–11:00':0,'11:00–12:00':0,'12:00–13:00':0,'13:00–14:00':0,'14:00–15:00':0,'15:00–16:00':0};
   trades.forEach(t=>{
-    if(t.instrument==='OPTION')cats[t.optionType]=(cats[t.optionType]||0)+t.pnl;
-    else cats[t.dir]=(cats[t.dir]||0)+t.pnl;
+    if(!t.entryTime) return;
+    const [h,m]=t.entryTime.split(':').map(Number);
+    const mins=h*60+m;
+    let slot=null;
+    if(mins>=570&&mins<600) slot='9:30–10:00';
+    else if(mins>=600&&mins<660) slot='10:00–11:00';
+    else if(mins>=660&&mins<720) slot='11:00–12:00';
+    else if(mins>=720&&mins<780) slot='12:00–13:00';
+    else if(mins>=780&&mins<840) slot='13:00–14:00';
+    else if(mins>=840&&mins<900) slot='14:00–15:00';
+    else if(mins>=900&&mins<960) slot='15:00–16:00';
+    if(slot){slots[slot]+=t.pnl;slotCounts[slot]++;}
   });
-  const md=Math.max(...Object.values(cats).map(Math.abs))||1;
-  document.getElementById('analytics-direction').innerHTML=Object.entries(cats).filter(([,v])=>v!==0).map(([k,v])=>`<div class="bar-row"><span class="bar-label">${k}</span><div class="bar-track"><div class="bar-fill ${v>=0?'win':'loss'}" style="width:${Math.abs(v)/md*100}%">${v>=0?'+':''}$${v.toFixed(0)}</div></div></div>`).join('')||'<div style="color:var(--muted);font-size:12px">No data</div>';
+  const mxTod=Math.max(...Object.values(slots).map(Math.abs),1);
+  document.getElementById('analytics-timeofday').innerHTML=Object.entries(slots)
+    .filter(([k])=>slotCounts[k]>0)
+    .map(([k,v])=>`<div class="bar-row"><span class="bar-label">${k}</span><div class="bar-track"><div class="bar-fill ${v>=0?'win':'loss'}" style="width:${Math.abs(v)/mxTod*100}%">${v>=0?'+':''}$${v.toFixed(0)} <span style="opacity:0.6;font-size:10px">(${slotCounts[k]})</span></div></div></div>`)
+    .join('')||noData;
 
-  const wins=trades.filter(t=>t.pnl>0).length,losses=trades.filter(t=>t.pnl<0).length,be=trades.filter(t=>t.pnl===0).length,tot=trades.length||1;
-  document.getElementById('analytics-wl').innerHTML=trades.length?`<div style="margin-bottom:16px"><div style="display:flex;height:24px"><div style="width:${wins/tot*100}%;background:var(--win);opacity:0.7"></div><div style="width:${be/tot*100}%;background:var(--accent3);opacity:0.7"></div><div style="width:${losses/tot*100}%;background:var(--loss);opacity:0.7"></div></div></div><div style="display:flex;gap:20px;font-size:12px"><div><span style="color:var(--win)">■</span> Wins: <b>${wins}</b></div><div><span style="color:var(--accent3)">■</span> BE: <b>${be}</b></div><div><span style="color:var(--loss)">■</span> Losses: <b>${losses}</b></div></div>`:'<div style="color:var(--muted);font-size:12px">No data</div>';
+  // ---- DAY OF WEEK ----
+  const days={'Mon':0,'Tue':0,'Wed':0,'Thu':0,'Fri':0};
+  const dayCounts={'Mon':0,'Tue':0,'Wed':0,'Thu':0,'Fri':0};
+  trades.forEach(t=>{
+    if(!t.date)return;
+    const d=new Date(t.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'});
+    if(days[d]!==undefined){days[d]+=t.pnl;dayCounts[d]++;}
+  });
+  const mxDow=Math.max(...Object.values(days).map(Math.abs),1);
+  document.getElementById('analytics-dayofweek').innerHTML=Object.entries(days)
+    .map(([k,v])=>`<div class="bar-row"><span class="bar-label">${k} <span style="color:var(--muted);font-size:10px">(${dayCounts[k]})</span></span><div class="bar-track"><div class="bar-fill ${v>=0?'win':'loss'}" style="width:${Math.abs(v)/mxDow*100}%">${dayCounts[k]>0?(v>=0?'+':'')+'$'+v.toFixed(0):'—'}</div></div></div>`)
+    .join('');
 
+  // ---- TRADE # OF THE DAY ----
+  const byDate={};
+  [...trades].sort((a,b)=>new Date(a.date+' '+(a.entryTime||'00:00'))-new Date(b.date+' '+(b.entryTime||'00:00')))
+    .forEach(t=>{
+      if(!byDate[t.date]) byDate[t.date]=[];
+      byDate[t.date].push(t);
+    });
+  const tradeNumPnl={'1st':[],'2nd':[],'3rd':[],'4th+':[]};
+  Object.values(byDate).forEach(dayTrades=>{
+    dayTrades.forEach((t,i)=>{
+      const key=i===0?'1st':i===1?'2nd':i===2?'3rd':'4th+';
+      tradeNumPnl[key].push(t.pnl);
+    });
+  });
+  const tnEl=document.getElementById('analytics-tradenum');
+  if(!trades.length){tnEl.innerHTML=noData;}
+  else{
+    const mxTn=Math.max(...Object.values(tradeNumPnl).map(arr=>Math.abs(arr.reduce((s,v)=>s+v,0))),1);
+    tnEl.innerHTML=Object.entries(tradeNumPnl).filter(([,arr])=>arr.length>0).map(([k,arr])=>{
+      const total=arr.reduce((s,v)=>s+v,0);
+      const avg=total/arr.length;
+      const wr=Math.round(arr.filter(v=>v>0).length/arr.length*100);
+      return `<div class="bar-row"><span class="bar-label">${k} trade <span style="color:var(--muted);font-size:10px">${arr.length}× · ${wr}% WR</span></span><div class="bar-track"><div class="bar-fill ${total>=0?'win':'loss'}" style="width:${Math.abs(total)/mxTn*100}%">avg ${avg>=0?'+':''}$${avg.toFixed(0)}</div></div></div>`;
+    }).join('')||noData;
+  }
+
+  // ---- WIN/LOSS STREAK ----
+  const stEl=document.getElementById('analytics-streak');
+  if(!trades.length){stEl.innerHTML=noData;}
+  else{
+    const sorted=[...trades].sort((a,b)=>new Date(a.date+' '+(a.entryTime||'00:00'))-new Date(b.date+' '+(b.entryTime||'00:00')));
+    let curStreak=0,curType=null,maxWin=0,maxLoss=0;
+    sorted.forEach(t=>{
+      const w=t.pnl>0;
+      if(w&&curType==='win'){curStreak++;}
+      else if(!w&&t.pnl<0&&curType==='loss'){curStreak++;}
+      else{curStreak=1;curType=t.pnl>0?'win':'loss';}
+      if(curType==='win'&&curStreak>maxWin)maxWin=curStreak;
+      if(curType==='loss'&&curStreak>maxLoss)maxLoss=curStreak;
+    });
+    stEl.innerHTML=`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div style="text-align:center;padding:16px;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.2)">
+          <div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:8px">BEST WIN STREAK</div>
+          <div style="font-family:'Syne',sans-serif;font-size:32px;font-weight:800;color:var(--win)">${maxWin}</div>
+        </div>
+        <div style="text-align:center;padding:16px;background:rgba(255,68,102,0.06);border:1px solid rgba(255,68,102,0.2)">
+          <div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:8px">WORST LOSS STREAK</div>
+          <div style="font-family:'Syne',sans-serif;font-size:32px;font-weight:800;color:var(--loss)">${maxLoss}</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted)">Current streak: <strong style="color:${curType==='win'?'var(--win)':'var(--loss)'}">${curStreak} ${curType==='win'?'wins':'losses'} in a row</strong></div>`;
+  }
+
+  // ---- CALLS VS PUTS ----
+  const cats={CALL:0,PUT:0};
+  trades.forEach(t=>{ if(t.optionType) cats[t.optionType]=(cats[t.optionType]||0)+t.pnl; });
+  const md=Math.max(...Object.values(cats).map(Math.abs),1);
+  document.getElementById('analytics-direction').innerHTML=Object.entries(cats).filter(([,v])=>v!==0)
+    .map(([k,v])=>`<div class="bar-row"><span class="bar-label">${k}</span><div class="bar-track"><div class="bar-fill ${v>=0?'win':'loss'}" style="width:${Math.abs(v)/md*100}%">${v>=0?'+':''}$${v.toFixed(0)}</div></div></div>`).join('')||noData;
+
+  // ---- TOP SYMBOLS ----
   const syms={};
   trades.forEach(t=>{syms[t.sym]=(syms[t.sym]||0)+t.pnl;});
-  const ms=Math.max(...Object.values(syms).map(Math.abs))||1;
-  document.getElementById('analytics-symbols').innerHTML=Object.entries(syms).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>`<div class="bar-row"><span class="bar-label">${k}</span><div class="bar-track"><div class="bar-fill ${v>=0?'win':'loss'}" style="width:${Math.abs(v)/ms*100}%">${v>=0?'+':''}$${v.toFixed(0)}</div></div></div>`).join('')||'<div style="color:var(--muted);font-size:12px">No data</div>';
+  const ms=Math.max(...Object.values(syms).map(Math.abs),1);
+  document.getElementById('analytics-symbols').innerHTML=Object.entries(syms).sort((a,b)=>b[1]-a[1]).slice(0,6)
+    .map(([k,v])=>`<div class="bar-row"><span class="bar-label">${k}</span><div class="bar-track"><div class="bar-fill ${v>=0?'win':'loss'}" style="width:${Math.abs(v)/ms*100}%">${v>=0?'+':''}$${v.toFixed(0)}</div></div></div>`).join('')||noData;
 
-  // ---- AVG HOLD TIME: winners vs losers ----
+  // ---- AVG HOLD TIME ----
   function holdMinutes(t){
     if(!t.entryTime||!t.exitTime)return null;
-    // Parse HH:MM or HH:MM:SS
     const toMin=s=>{const p=s.split(':');return parseInt(p[0])*60+parseInt(p[1])+(p[2]?parseInt(p[2])/60:0);};
     const diff=toMin(t.exitTime)-toMin(t.entryTime);
-    return diff>=0?diff:null; // ignore overnight / missing
+    return diff>=0?diff:null;
   }
   function fmtDuration(mins){
     if(mins===null||isNaN(mins))return'—';
@@ -1691,80 +1778,57 @@ function renderAnalytics() {
     const h=Math.floor(mins/60),m=Math.round(mins%60);
     return m>0?`${h}h ${m}m`:`${h}h`;
   }
-  const winTimes  = trades.filter(t=>t.pnl>0).map(holdMinutes).filter(v=>v!==null);
-  const lossTimes = trades.filter(t=>t.pnl<0).map(holdMinutes).filter(v=>v!==null);
-  const avgWinTime  = winTimes.length  ? winTimes.reduce((a,b)=>a+b,0)/winTimes.length   : null;
-  const avgLossTime = lossTimes.length ? lossTimes.reduce((a,b)=>a+b,0)/lossTimes.length : null;
-  const maxTime = Math.max(avgWinTime||0, avgLossTime||0)||1;
-  const htEl = document.getElementById('analytics-holdtime');
-  if(!winTimes.length && !lossTimes.length){
-    htEl.innerHTML='<div style="color:var(--muted);font-size:12px">Requires entry & exit time on trades</div>';
-  } else {
-    htEl.innerHTML=`
-      <div style="margin-bottom:20px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-size:12px;color:var(--muted)">Winners (${winTimes.length} trades)</span>
-          <span style="font-family:'Syne',sans-serif;font-weight:700;color:var(--win);font-size:18px">${fmtDuration(avgWinTime)}</span>
-        </div>
-        <div style="background:var(--surface2);height:20px;width:100%">
-          <div style="height:100%;width:${avgWinTime?avgWinTime/maxTime*100:0}%;background:rgba(0,255,136,0.25);border-right:2px solid var(--win)"></div>
-        </div>
+  const winTimes=trades.filter(t=>t.pnl>0).map(holdMinutes).filter(v=>v!==null);
+  const lossTimes=trades.filter(t=>t.pnl<0).map(holdMinutes).filter(v=>v!==null);
+  const avgWinTime=winTimes.length?winTimes.reduce((a,b)=>a+b,0)/winTimes.length:null;
+  const avgLossTime=lossTimes.length?lossTimes.reduce((a,b)=>a+b,0)/lossTimes.length:null;
+  const maxTime=Math.max(avgWinTime||0,avgLossTime||0)||1;
+  const htEl=document.getElementById('analytics-holdtime');
+  if(!winTimes.length&&!lossTimes.length){htEl.innerHTML='<div style="color:var(--muted);font-size:12px">Requires entry & exit time on trades</div>';}
+  else{htEl.innerHTML=`
+    <div style="margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:12px;color:var(--muted)">Winners (${winTimes.length})</span>
+        <span style="font-family:'Syne',sans-serif;font-weight:700;color:var(--win);font-size:18px">${fmtDuration(avgWinTime)}</span>
       </div>
-      <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-size:12px;color:var(--muted)">Losers (${lossTimes.length} trades)</span>
-          <span style="font-family:'Syne',sans-serif;font-weight:700;color:var(--loss);font-size:18px">${fmtDuration(avgLossTime)}</span>
-        </div>
-        <div style="background:var(--surface2);height:20px;width:100%">
-          <div style="height:100%;width:${avgLossTime?avgLossTime/maxTime*100:0}%;background:rgba(255,68,102,0.25);border-right:2px solid var(--loss)"></div>
-        </div>
+      <div style="background:var(--surface2);height:20px;width:100%"><div style="height:100%;width:${avgWinTime?avgWinTime/maxTime*100:0}%;background:rgba(0,255,136,0.25);border-right:2px solid var(--win)"></div></div>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:12px;color:var(--muted)">Losers (${lossTimes.length})</span>
+        <span style="font-family:'Syne',sans-serif;font-weight:700;color:var(--loss);font-size:18px">${fmtDuration(avgLossTime)}</span>
       </div>
-      ${avgWinTime!==null&&avgLossTime!==null?`
-      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)">
-        ${avgLossTime>avgWinTime
-          ? `⚠ You hold losing trades <strong style="color:var(--loss)">${fmtDuration(avgLossTime-avgWinTime)} longer</strong> than winners — classic sign of letting losers run`
-          : `✓ You exit losers <strong style="color:var(--win)">${fmtDuration(avgWinTime-avgLossTime)} faster</strong> than you close winners`}
-      </div>`:''}
-    `;
-  }
+      <div style="background:var(--surface2);height:20px;width:100%"><div style="height:100%;width:${avgLossTime?avgLossTime/maxTime*100:0}%;background:rgba(255,68,102,0.25);border-right:2px solid var(--loss)"></div></div>
+    </div>
+    ${avgWinTime!==null&&avgLossTime!==null?`<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)">${avgLossTime>avgWinTime?`⚠ Holding losers <strong style="color:var(--loss)">${fmtDuration(avgLossTime-avgWinTime)} longer</strong> than winners`:`✓ Cutting losers <strong style="color:var(--win)">${fmtDuration(avgWinTime-avgLossTime)} faster</strong> than winners`}</div>`:''}
+  `;}
 
-  // ---- AVG WIN AMOUNT vs AVG LOSS AMOUNT ----
-  const winTrades  = trades.filter(t=>t.pnl>0);
-  const lossTrades = trades.filter(t=>t.pnl<0);
-  const avgWin  = winTrades.length  ? winTrades.reduce((s,t)=>s+t.pnl,0)/winTrades.length   : null;
-  const avgLoss = lossTrades.length ? Math.abs(lossTrades.reduce((s,t)=>s+t.pnl,0)/lossTrades.length) : null;
-  const maxAmt  = Math.max(avgWin||0, avgLoss||0)||1;
-  const apEl = document.getElementById('analytics-avgpnl');
-  if(!winTrades.length && !lossTrades.length){
-    apEl.innerHTML='<div style="color:var(--muted);font-size:12px">No data yet</div>';
-  } else {
-    const ratio = avgWin&&avgLoss ? (avgWin/avgLoss).toFixed(2) : null;
+  // ---- AVG WIN vs AVG LOSS ----
+  const winTrades=trades.filter(t=>t.pnl>0);
+  const lossTrades=trades.filter(t=>t.pnl<0);
+  const avgWin=winTrades.length?winTrades.reduce((s,t)=>s+t.pnl,0)/winTrades.length:null;
+  const avgLoss=lossTrades.length?Math.abs(lossTrades.reduce((s,t)=>s+t.pnl,0)/lossTrades.length):null;
+  const maxAmt=Math.max(avgWin||0,avgLoss||0)||1;
+  const apEl=document.getElementById('analytics-avgpnl');
+  if(!winTrades.length&&!lossTrades.length){apEl.innerHTML=noData;}
+  else{
+    const ratio=avgWin&&avgLoss?(avgWin/avgLoss).toFixed(2):null;
     apEl.innerHTML=`
       <div style="margin-bottom:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-size:12px;color:var(--muted)">Avg Winner (${winTrades.length} trades)</span>
+          <span style="font-size:12px;color:var(--muted)">Avg Winner (${winTrades.length})</span>
           <span style="font-family:'Syne',sans-serif;font-weight:700;color:var(--win);font-size:18px">${avgWin!==null?'+$'+avgWin.toFixed(2):'—'}</span>
         </div>
-        <div style="background:var(--surface2);height:20px;width:100%">
-          <div style="height:100%;width:${avgWin?avgWin/maxAmt*100:0}%;background:rgba(0,255,136,0.25);border-right:2px solid var(--win)"></div>
-        </div>
+        <div style="background:var(--surface2);height:20px;width:100%"><div style="height:100%;width:${avgWin?avgWin/maxAmt*100:0}%;background:rgba(0,255,136,0.25);border-right:2px solid var(--win)"></div></div>
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-size:12px;color:var(--muted)">Avg Loser (${lossTrades.length} trades)</span>
+          <span style="font-size:12px;color:var(--muted)">Avg Loser (${lossTrades.length})</span>
           <span style="font-family:'Syne',sans-serif;font-weight:700;color:var(--loss);font-size:18px">${avgLoss!==null?'-$'+avgLoss.toFixed(2):'—'}</span>
         </div>
-        <div style="background:var(--surface2);height:20px;width:100%">
-          <div style="height:100%;width:${avgLoss?avgLoss/maxAmt*100:0}%;background:rgba(255,68,102,0.25);border-right:2px solid var(--loss)"></div>
-        </div>
+        <div style="background:var(--surface2);height:20px;width:100%"><div style="height:100%;width:${avgLoss?avgLoss/maxAmt*100:0}%;background:rgba(255,68,102,0.25);border-right:2px solid var(--loss)"></div></div>
       </div>
-      ${ratio?`
-      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)">
-        Reward/Risk ratio: <strong style="color:${parseFloat(ratio)>=1?'var(--win)':'var(--loss)'};font-size:14px">${ratio}:1</strong>
-        — ${parseFloat(ratio)>=1
-          ? `your average win is larger than your average loss ✓`
-          : `your average loss is larger than your average win — focus on cutting losers sooner`}
-      </div>`:''}
+      ${ratio?`<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)">R:R ratio: <strong style="color:${parseFloat(ratio)>=1?'var(--win)':'var(--loss)'};">${ratio}:1</strong> — ${parseFloat(ratio)>=1?'avg win larger than avg loss ✓':'avg loss larger than avg win — cut losers sooner'}</div>`:''}
     `;
   }
 }
