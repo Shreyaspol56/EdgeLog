@@ -230,10 +230,10 @@
         </div>
       </div>
       <div class="stats-grid">
-        <div class="stat-card"><div class="stat-label">Account Balance</div><div class="stat-value positive" id="stat-balance">$0.00</div><div class="stat-sub" id="stat-balance-sub">starting $0.00</div></div>
+        <div class="stat-card"><div class="stat-label">Account Balance</div><div class="stat-value positive" id="stat-balance">$0.00</div><div class="stat-sub" id="stat-balance-sub">started at $0.00</div><div id="stat-balance-change" style="font-size:12px;margin-top:4px;font-weight:700"></div></div>
         <div class="stat-card neutral"><div class="stat-label">Win Rate</div><div class="stat-value" id="stat-wr">0%</div><div class="stat-sub" id="stat-wr-sub">0W / 0L</div></div>
         <div class="stat-card warn"><div class="stat-label">Profit Factor</div><div class="stat-value" id="stat-pf">—</div><div class="stat-sub">gross win / gross loss</div></div>
-        <div class="stat-card loss"><div class="stat-label">Total Commissions</div><div class="stat-value" id="stat-comm" style="color:#ffaa00">$0.00</div><div class="stat-sub" id="stat-comm-sub">fees paid</div></div>
+        <div class="stat-card loss"><div class="stat-label">Total Commissions + Fees</div><div class="stat-value" id="stat-comm" style="color:#ffaa00">$0.00</div><div class="stat-sub" id="stat-comm-sub">fees paid</div></div>
       </div>
 
       <!-- TWO CHARTS -->
@@ -325,32 +325,8 @@
     <div id="view-analytics" class="view">
       <div class="page-header"><div><div class="page-title">Analytics</div><div class="page-subtitle">Performance breakdown</div></div></div>
 
-      <!-- ROW 1 -->
+      <!-- ROW 1 — KEY PANELS FIRST -->
       <div class="two-col" style="margin-bottom:24px">
-        <div class="panel"><div class="panel-title">P&L by Setup Tag</div><div class="bar-chart" id="analytics-tags"></div></div>
-        <div class="panel"><div class="panel-title">P&L by Market Condition</div><div class="bar-chart" id="analytics-condition"></div></div>
-      </div>
-
-      <!-- ROW 2 -->
-      <div class="two-col" style="margin-bottom:24px">
-        <div class="panel"><div class="panel-title">P&L by Time of Day</div><div class="bar-chart" id="analytics-timeofday"></div></div>
-        <div class="panel"><div class="panel-title">P&L by Day of Week</div><div class="bar-chart" id="analytics-dayofweek"></div></div>
-      </div>
-
-      <!-- ROW 3 -->
-      <div class="two-col" style="margin-bottom:24px">
-        <div class="panel"><div class="panel-title">Trade # of the Day Performance</div><div id="analytics-tradenum"></div></div>
-        <div class="panel"><div class="panel-title">Win / Loss Streak</div><div id="analytics-streak"></div></div>
-      </div>
-
-      <!-- ROW 4 -->
-      <div class="two-col" style="margin-bottom:24px">
-        <div class="panel"><div class="panel-title">Calls vs Puts</div><div class="bar-chart" id="analytics-direction"></div></div>
-        <div class="panel"><div class="panel-title">Top Symbols by P&L</div><div class="bar-chart" id="analytics-symbols"></div></div>
-      </div>
-
-      <!-- ROW 5 -->
-      <div class="two-col">
         <div class="panel">
           <div class="panel-title">Avg Hold Time — Winners vs Losers</div>
           <div id="analytics-holdtime"><div style="color:var(--muted);font-size:12px">Requires entry & exit time on trades</div></div>
@@ -359,6 +335,36 @@
           <div class="panel-title">Avg Win vs Avg Loss</div>
           <div id="analytics-avgpnl"><div style="color:var(--muted);font-size:12px">No data yet</div></div>
         </div>
+      </div>
+
+      <!-- ROW 2 -->
+      <div class="two-col" style="margin-bottom:24px">
+        <div class="panel"><div class="panel-title">P&L by Setup Tag</div><div class="bar-chart" id="analytics-tags"></div></div>
+        <div class="panel"><div class="panel-title">P&L by Market Condition</div><div class="bar-chart" id="analytics-condition"></div></div>
+      </div>
+
+      <!-- ROW 3 -->
+      <div class="two-col" style="margin-bottom:24px">
+        <div class="panel"><div class="panel-title">P&L by Time of Day</div><div class="bar-chart" id="analytics-timeofday"></div></div>
+        <div class="panel"><div class="panel-title">P&L by Day of Week</div><div class="bar-chart" id="analytics-dayofweek"></div></div>
+      </div>
+
+      <!-- ROW 4 -->
+      <div class="two-col" style="margin-bottom:24px">
+        <div class="panel"><div class="panel-title">Trade # of the Day Performance</div><div id="analytics-tradenum"></div></div>
+        <div class="panel"><div class="panel-title">Win / Loss Streak</div><div id="analytics-streak"></div></div>
+      </div>
+
+      <!-- ROW 5 -->
+      <div class="two-col" style="margin-bottom:24px">
+        <div class="panel"><div class="panel-title">Calls vs Puts</div><div class="bar-chart" id="analytics-direction"></div></div>
+        <div class="panel"><div class="panel-title">Top Symbols by P&L</div><div class="bar-chart" id="analytics-symbols"></div></div>
+      </div>
+
+      <!-- ROW 6: FEES -->
+      <div class="panel">
+        <div class="panel-title">Cost Breakdown — Commissions & Fees</div>
+        <div id="analytics-fees"><div style="color:var(--muted);font-size:12px">No data yet</div></div>
       </div>
     </div>
 
@@ -923,6 +929,7 @@ function calcCurrentBalance() {
     if (e.type === 'set') bal = e.amount;
     else if (e.type === 'deposit') bal += e.amount;
     else if (e.type === 'withdraw') bal -= e.amount;
+    else if (e.type === 'fee') bal += e.amount; // fees are already negative amounts
   });
   return bal + trades.reduce((s,t) => s + t.pnl, 0);
 }
@@ -939,9 +946,15 @@ function buildAccountCurve() {
   const firstSet = events.find(e=>e.type==='set');
   if (firstSet) { base = firstSet.amount; pts.push({date: firstSet.date, value: base, label: 'Start'}); }
 
-  // Merge deposits/withdraws and trades by date
+  // Merge deposits/withdraws/fees and trades by date
   const allItems = [];
-  events.filter(e=>e.type!=='set').forEach(e => allItems.push({date:e.date, delta: e.type==='deposit'?e.amount:-e.amount, label: e.type}));
+  events.filter(e=>e.type!=='set').forEach(e => {
+    let delta = 0;
+    if(e.type==='deposit') delta = e.amount;
+    else if(e.type==='withdraw') delta = -e.amount;
+    else if(e.type==='fee') delta = e.amount; // already negative
+    allItems.push({date:e.date, delta, label: e.type});
+  });
   tradeSorted.forEach(t => allItems.push({date:t.date, delta:t.pnl, label:t.sym}));
   allItems.sort((a,b) => new Date(a.date)-new Date(b.date));
 
@@ -978,11 +991,14 @@ function drawCharts() {
 
   const acctFinal = acctPts.length ? acctPts[acctPts.length-1].value : getStartingBalance();
   const monthFinal = monthPts.length ? monthPts[monthPts.length-1].value : 0;
-  const acctColor = acctFinal >= getStartingBalance() ? '#00ff88' : '#ff4466';
+  const acctStart = getStartingBalance();
+  const acctChange = acctFinal - acctStart;
+  const acctChangePct = acctStart ? (acctChange/acctStart*100).toFixed(1) : 0;
+  const acctColor = acctFinal >= acctStart ? '#00ff88' : '#ff4466';
   const monthColor = monthFinal >= 0 ? '#00ff88' : '#ff4466';
 
-  document.getElementById('account-chart-label').textContent = `$${acctFinal.toFixed(2)}`;
-  document.getElementById('account-chart-label').style.color = acctColor;
+  document.getElementById('account-chart-label').innerHTML =
+    `<span style="color:${acctColor}">$${acctFinal.toFixed(2)}</span>&nbsp;<span style="font-size:11px;color:${acctColor}">${acctChange>=0?'+':''}$${acctChange.toFixed(2)} (${acctChange>=0?'+':''}${acctChangePct}%)</span>`;
   document.getElementById('month-chart-label').textContent = `${monthFinal>=0?'+':''}$${monthFinal.toFixed(2)}`;
   document.getElementById('month-chart-label').style.color = monthColor;
 
@@ -1455,21 +1471,26 @@ function renderDashboard() {
   const grossLoss = Math.abs(trades.filter(t=>t.pnl<0).reduce((s,t)=>s+t.pnl,0));
   const pf = grossLoss > 0 ? (grossWin/grossLoss).toFixed(2) : grossWin > 0 ? '∞' : '—';
   const totalComm = trades.reduce((s,t)=>s+(t.commissions||0),0);
+  const totalFees = accountEvents.filter(e=>e.type==='fee').reduce((s,e)=>s+Math.abs(e.amount),0);
   const rrs = trades.filter(t=>t.rr).map(t=>t.rr);
   const avgRR = rrs.length ? (rrs.reduce((a,b)=>a+b,0)/rrs.length).toFixed(2) : '—';
 
   const currentBal = calcCurrentBalance();
   const startBal = getStartingBalance();
+  const balChange = currentBal - startBal;
+  const balChangePct = startBal ? (balChange/startBal*100).toFixed(1) : 0;
   const balEl = document.getElementById('stat-balance');
   balEl.textContent = `$${currentBal.toFixed(2)}`;
   balEl.className = 'stat-value ' + (currentBal >= startBal ? 'positive' : 'negative');
   document.getElementById('stat-balance-sub').textContent = `started at $${startBal.toFixed(2)}`;
+  document.getElementById('stat-balance-change').innerHTML =
+    `<span style="color:${balChange>=0?'var(--win)':'var(--loss)'}">${balChange>=0?'+':''}$${balChange.toFixed(2)} (${balChange>=0?'+':''}${balChangePct}%)</span>`;
 
   document.getElementById('stat-wr').textContent = wr + '%';
   document.getElementById('stat-wr-sub').textContent = `${wins}W / ${losses}L`;
   document.getElementById('stat-pf').textContent = pf;
-  document.getElementById('stat-comm').textContent = `$${totalComm.toFixed(2)}`;
-  document.getElementById('stat-comm-sub').textContent = `across ${trades.filter(t=>t.commissions>0).length} trades`;
+  document.getElementById('stat-comm').textContent = `$${(totalComm + totalFees).toFixed(2)}`;
+  document.getElementById('stat-comm-sub').textContent = `$${totalComm.toFixed(2)} comm · $${totalFees.toFixed(2)} IBKR fees`;
 
   const recent = [...trades].sort((a,b)=>new Date(b.date+' '+(b.entryTime||'00:00'))-new Date(a.date+' '+(a.entryTime||'00:00'))).slice(0,5);
   document.getElementById('recent-trades-list').innerHTML = recent.length ? recent.map(t=>`
@@ -1813,6 +1834,11 @@ function renderAnalytics() {
   if(!winTrades.length&&!lossTrades.length){apEl.innerHTML=noData;}
   else{
     const ratio=avgWin&&avgLoss?(avgWin/avgLoss).toFixed(2):null;
+    const actualWR = trades.length ? Math.round(winTrades.length/trades.length*100*10)/10 : 0;
+    const breakEvenWR = ratio ? Math.round(1/(1+parseFloat(ratio))*100*10)/10 : null;
+    const wrGap = breakEvenWR !== null ? Math.round((actualWR - breakEvenWR)*10)/10 : null;
+    const extraWins = breakEvenWR !== null ? Math.round((breakEvenWR - actualWR)/100*100*10)/10 : null;
+
     apEl.innerHTML=`
       <div style="margin-bottom:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -1821,14 +1847,72 @@ function renderAnalytics() {
         </div>
         <div style="background:var(--surface2);height:20px;width:100%"><div style="height:100%;width:${avgWin?avgWin/maxAmt*100:0}%;background:rgba(0,255,136,0.25);border-right:2px solid var(--win)"></div></div>
       </div>
-      <div>
+      <div style="margin-bottom:16px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <span style="font-size:12px;color:var(--muted)">Avg Loser (${lossTrades.length})</span>
           <span style="font-family:'Syne',sans-serif;font-weight:700;color:var(--loss);font-size:18px">${avgLoss!==null?'-$'+avgLoss.toFixed(2):'—'}</span>
         </div>
         <div style="background:var(--surface2);height:20px;width:100%"><div style="height:100%;width:${avgLoss?avgLoss/maxAmt*100:0}%;background:rgba(255,68,102,0.25);border-right:2px solid var(--loss)"></div></div>
       </div>
-      ${ratio?`<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)">R:R ratio: <strong style="color:${parseFloat(ratio)>=1?'var(--win)':'var(--loss)'};">${ratio}:1</strong> — ${parseFloat(ratio)>=1?'avg win larger than avg loss ✓':'avg loss larger than avg win — cut losers sooner'}</div>`:''}
+      ${ratio?`
+      <div style="border-top:1px solid var(--border);padding-top:14px;display:grid;gap:10px">
+        <div style="display:flex;justify-content:space-between;font-size:12px">
+          <span style="color:var(--muted)">R:R ratio</span>
+          <strong style="color:${parseFloat(ratio)>=1?'var(--win)':'var(--loss)'}">${ratio}:1</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px">
+          <span style="color:var(--muted)">Break-even win rate needed</span>
+          <strong style="color:var(--text)">${breakEvenWR}%</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px">
+          <span style="color:var(--muted)">Your actual win rate</span>
+          <strong style="color:var(--text)">${actualWR}%</strong>
+        </div>
+        <div style="padding:10px;background:${wrGap>=0?'rgba(0,255,136,0.07)':'rgba(255,68,102,0.07)'};border:1px solid ${wrGap>=0?'rgba(0,255,136,0.2)':'rgba(255,68,102,0.2)'};font-size:12px">
+          ${wrGap>=0
+            ? `✓ You're <strong style="color:var(--win)">${Math.abs(wrGap)}% above</strong> break-even — profitable edge confirmed`
+            : `⚠ You're <strong style="color:var(--loss)">${Math.abs(wrGap)}% below</strong> break-even — need <strong style="color:var(--loss)">${Math.abs(extraWins)} more wins per 100 trades</strong> to be profitable`}
+        </div>
+      </div>`:''}
+    `;
+  }
+
+  // ---- COST BREAKDOWN ----
+  const feesEl = document.getElementById('analytics-fees');
+  const totalCommA = trades.reduce((s,t)=>s+(t.commissions||0),0);
+  const totalFeesA = accountEvents.filter(e=>e.type==='fee').reduce((s,e)=>s+Math.abs(e.amount),0);
+  const totalCostA = totalCommA + totalFeesA;
+  const grossPnl = trades.reduce((s,t)=>s+(t.pnl+(t.commissions||0)),0);
+  if(!trades.length){feesEl.innerHTML=noData;}
+  else{
+    const commPct = grossPnl ? (totalCommA/Math.abs(grossPnl)*100).toFixed(1) : '—';
+    feesEl.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:20px">
+        <div style="text-align:center">
+          <div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:6px">COMMISSIONS</div>
+          <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#ffaa00">$${totalCommA.toFixed(2)}</div>
+          <div style="font-size:10px;color:var(--muted)">${commPct}% of gross P&L</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:6px">IBKR FEES</div>
+          <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#ffaa00">$${totalFeesA.toFixed(2)}</div>
+          <div style="font-size:10px;color:var(--muted)">market data etc</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:6px">TOTAL COST</div>
+          <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--loss)">$${totalCostA.toFixed(2)}</div>
+          <div style="font-size:10px;color:var(--muted)">drag on account</div>
+        </div>
+      </div>
+      ${accountEvents.filter(e=>e.type==='fee').length>0?`
+      <div style="font-size:11px;color:var(--muted);border-top:1px solid var(--border);padding-top:12px">
+        <div style="margin-bottom:6px;color:var(--text)">Fee breakdown:</div>
+        ${accountEvents.filter(e=>e.type==='fee').map(e=>`
+          <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+            <span>${e.note||'Fee'} <span style="color:var(--muted)">(${e.date})</span></span>
+            <span style="color:#ffaa00">${e.amount<0?'-':'+'}$${Math.abs(e.amount).toFixed(2)}</span>
+          </div>`).join('')}
+      </div>`:''}
     `;
   }
 }
@@ -2006,7 +2090,26 @@ function parseIBKR(text){
       });
     });
   });
-  return result;
+  // ---- STARTING NAV ----
+  const navLine = lines.find(l => l.startsWith('Change in NAV,Data,Starting Value,'));
+  const startingNav = navLine ? parseFloat(navLine.split(',')[3]) : null;
+
+  // ---- FEES (market data, taxes, etc) ----
+  const fees = [];
+  const feeHeaderLine = lines.find(l => l.startsWith('Fees,Header,'));
+  const feeHeaders = feeHeaderLine ? parse(feeHeaderLine).slice(2) : [];
+  lines.filter(l => l.startsWith('Fees,Data,') && !l.startsWith('Fees,Data,Total')).forEach(l => {
+    const cols = parse(l).slice(2);
+    const obj = {}; feeHeaders.forEach((h,i) => obj[h] = cols[i]);
+    const amount = parseFloat(obj['Amount'] || obj['amount'] || cols[cols.length-1]);
+    const date = obj['Date'] || obj['date'] || cols[1];
+    const desc = obj['Description'] || obj['description'] || cols[2] || 'Fee';
+    if (!isNaN(amount) && amount !== 0) {
+      fees.push({ date: date || '', amount, desc });
+    }
+  });
+
+  return { trades: result, startingNav, fees };
 }
 
 function parseCsvFile(file){
@@ -2018,19 +2121,21 @@ function parseCsvFile(file){
 
     // Check if IBKR format
     if(isIBKRFormat(lines)){
-      const ibkrTrades = parseIBKR(text);
+      const ibkrResult = parseIBKR(text);
+      const ibkrTrades = ibkrResult ? ibkrResult.trades : null;
       if(!ibkrTrades || ibkrTrades.length===0){showToast('IBKR file found but no completed trades detected.',true);return;}
       // Show IBKR preview directly
       csvHeaders=['Symbol','Date','Entry Time','Exit Time','Direction','Type','Strike','Expiry','Entry $','Exit $','Qty','Entry Comm','Exit Comm','Net P&L'];
       csvRows=ibkrTrades.map(t=>[t.sym,t.date,t.entryTime,t.exitTime||'—',t.dir,t.optionType||'STOCK',t.strike||'—',t.expiry||'—',t.entry,t.exit,t.contracts||t.size,t.commEntry.toFixed(4),t.commExit.toFixed(4),(t.pnl>=0?'+':'')+t.pnl.toFixed(2)]);
-      document.getElementById('csv-map-section').style.display='none'; // no mapping needed for IBKR
+      document.getElementById('csv-map-section').style.display='none';
       document.getElementById('csv-preview-section').style.display='block';
       showCsvPreview();
-      // Store parsed trades for direct import
       window._ibkrParsed = ibkrTrades;
-      // Change import button to use IBKR path
+      window._ibkrMeta = { startingNav: ibkrResult.startingNav, fees: ibkrResult.fees };
       document.querySelector('#csv-preview-section .btn').onclick = importIBKRTrades;
-      showToast(`✓ IBKR file detected — ${ibkrTrades.length} completed trades ready to import`);
+      const feeNote = ibkrResult.fees.length > 0 ? ` + ${ibkrResult.fees.length} fee entries` : '';
+      const navNote = ibkrResult.startingNav ? ` · Starting balance: $${ibkrResult.startingNav.toFixed(2)}` : '';
+      showToast(`✓ IBKR file detected — ${ibkrTrades.length} trades${feeNote}${navNote}`);
       return;
     }
 
@@ -2051,7 +2156,39 @@ function parseCsvFile(file){
 
 async function importIBKRTrades(){
   const ibkrTrades = window._ibkrParsed;
+  const meta = window._ibkrMeta || {};
   if(!ibkrTrades){showToast('No IBKR data found.',true);return;}
+
+  setSyncStatus('syncing','SAVING');
+
+  // 1. Set starting balance from CSV if not already set by user
+  if(meta.startingNav) {
+    const existingStart = accountEvents.find(e => e.id === 'start');
+    if(!existingStart || confirm(`Update starting balance to $${meta.startingNav.toFixed(2)} (from IBKR CSV)?`)) {
+      const startEvent = { id: 'start', type: 'set', amount: meta.startingNav, date: '2026-01-01', note: 'Starting balance (from IBKR CSV)' };
+      const idx = accountEvents.findIndex(e => e.id === 'start');
+      if(idx >= 0) accountEvents[idx] = startEvent; else accountEvents.push(startEvent);
+      await cloudUpsertAccountEvent(startEvent);
+    }
+  }
+
+  // 2. Import fees as account events
+  if(meta.fees && meta.fees.length > 0) {
+    const existingFeeIds = new Set(accountEvents.map(e => e.id));
+    let newFees = 0;
+    for(const fee of meta.fees) {
+      const feeId = `ibkr-fee-${fee.date}-${fee.amount}-${fee.desc.slice(0,20).replace(/\s/g,'')}`;
+      if(!existingFeeIds.has(feeId)) {
+        const feeEvent = { id: feeId, type: 'fee', amount: fee.amount, date: fee.date, note: fee.desc };
+        accountEvents.push(feeEvent);
+        await cloudUpsertAccountEvent(feeEvent);
+        newFees++;
+      }
+    }
+    if(newFees > 0) showToast(`Imported ${newFees} fee entries from IBKR`, false);
+  }
+
+  // 3. Import trades (duplicate check)
   const existingIds = new Set(trades.map(t=>String(t.fullSymbol)+String(t.date)+String(t.entryTime)));
   let newTrades=[], skipped=0;
   ibkrTrades.forEach(t=>{
@@ -2059,12 +2196,11 @@ async function importIBKRTrades(){
     if(existingIds.has(key)){skipped++;return;}
     trades.push(t); newTrades.push(t);
   });
-  // Upload all new trades in parallel
-  setSyncStatus('syncing','SAVING');
   await Promise.all(newTrades.map(t => sb.from('trades').upsert({ id: String(t.id), user_id: currentUser.id, data: t })));
+
   setSyncStatus('synced','SYNCED');
   resetCsvImport();
-  showToast(`✓ Imported ${newTrades.length} IBKR trades${skipped>0?` (${skipped} duplicates skipped)`:''}`);
+  showToast(`✓ Imported ${newTrades.length} trades${skipped>0?` (${skipped} skipped)`:''}`);
   renderDashboard();
 }
 
