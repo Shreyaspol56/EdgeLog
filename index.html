@@ -2095,7 +2095,7 @@ function parseIBKR(text){
   const startingNav = navLine ? parseFloat(navLine.split(',')[3]) : null;
 
   // ---- FEES (market data, taxes, etc) ----
-  // Parse all fee rows including refunds (positive amounts cancel previous charges)
+  // Use stable IDs so re-importing always upserts correctly without duplicating
   const fees = [];
   const feeHeaderLine = lines.find(l => l.startsWith('Fees,Header,'));
   const feeHeaders = feeHeaderLine ? parse(feeHeaderLine).slice(2) : [];
@@ -2104,9 +2104,11 @@ function parseIBKR(text){
     const obj = {}; feeHeaders.forEach((h,i) => obj[h] = cols[i]);
     const amount = parseFloat(obj['Amount'] || cols[cols.length-1]);
     const date = obj['Date'] || cols[1];
-    const desc = obj['Description'] || cols[2] || 'Fee';
+    const desc = (obj['Description'] || cols[2] || 'Fee').replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
     if (!isNaN(amount) && amount !== 0) {
-      fees.push({ date: date || '', amount, desc });
+      // Stable ID: date + short desc only (no amount, no random chars)
+      const stableId = `ibkr-fee-${(date||'').replace(/[^0-9]/g,'').slice(0,8)}-${desc}`;
+      fees.push({ id: stableId, date: date || '', amount, desc: obj['Description'] || cols[2] || 'Fee' });
     }
   });
 
@@ -2115,18 +2117,14 @@ function parseIBKR(text){
   if (taxLine) {
     const taxAmount = parseFloat(taxLine.split(',')[3]);
     if (!isNaN(taxAmount) && taxAmount !== 0) {
-      // Find the period end date from Statement section
       const periodLine = lines.find(l => l.startsWith('Statement,Data,Period,'));
       let taxDate = '';
       if (periodLine) {
         const periodStr = periodLine.replace(/"/g,'');
         const dateMatch = periodStr.match(/(\w+ \d+, \d{4})\s*$/);
-        if (dateMatch) {
-          const d = new Date(dateMatch[1]);
-          taxDate = d.toISOString().split('T')[0];
-        }
+        if (dateMatch) { const d = new Date(dateMatch[1]); taxDate = d.toISOString().split('T')[0]; }
       }
-      fees.push({ date: taxDate, amount: taxAmount, desc: 'GST/HST/PST (IBKR)' });
+      fees.push({ id: 'ibkr-fee-GSTHST', date: taxDate, amount: taxAmount, desc: 'GST/HST/PST (IBKR)' });
     }
   }
 
@@ -2190,14 +2188,13 @@ async function importIBKRTrades(){
     await cloudUpsertAccountEvent(startEvent);
   }
 
-  // 2. Import fees — always upsert so re-importing corrects old values
+  // 2. Import fees — always upsert using stable IDs so re-importing never duplicates
   if(meta.fees && meta.fees.length > 0) {
-    let newFees = 0;
     for(const fee of meta.fees) {
-      const feeId = `ibkr-fee-${fee.date}-${fee.desc.slice(0,30).replace(/[\s\[\]]/g,'')}`;
+      const feeId = fee.id || `ibkr-fee-${fee.date}-${fee.desc.replace(/[^a-zA-Z0-9]/g,'').slice(0,20)}`;
       const feeEvent = { id: feeId, type: 'fee', amount: fee.amount, date: fee.date, note: fee.desc };
       const idx = accountEvents.findIndex(e => e.id === feeId);
-      if(idx >= 0) accountEvents[idx] = feeEvent; else { accountEvents.push(feeEvent); newFees++; }
+      if(idx >= 0) accountEvents[idx] = feeEvent; else accountEvents.push(feeEvent);
       await cloudUpsertAccountEvent(feeEvent);
     }
   }
