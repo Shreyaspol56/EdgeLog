@@ -2095,19 +2095,40 @@ function parseIBKR(text){
   const startingNav = navLine ? parseFloat(navLine.split(',')[3]) : null;
 
   // ---- FEES (market data, taxes, etc) ----
+  // Parse all fee rows including refunds (positive amounts cancel previous charges)
   const fees = [];
   const feeHeaderLine = lines.find(l => l.startsWith('Fees,Header,'));
   const feeHeaders = feeHeaderLine ? parse(feeHeaderLine).slice(2) : [];
-  lines.filter(l => l.startsWith('Fees,Data,') && !l.startsWith('Fees,Data,Total')).forEach(l => {
+  lines.filter(l => l.startsWith('Fees,Data,') && !l.startsWith('Fees,Data,Total') && !l.startsWith('Fees,Notes,')).forEach(l => {
     const cols = parse(l).slice(2);
     const obj = {}; feeHeaders.forEach((h,i) => obj[h] = cols[i]);
-    const amount = parseFloat(obj['Amount'] || obj['amount'] || cols[cols.length-1]);
-    const date = obj['Date'] || obj['date'] || cols[1];
-    const desc = obj['Description'] || obj['description'] || cols[2] || 'Fee';
+    const amount = parseFloat(obj['Amount'] || cols[cols.length-1]);
+    const date = obj['Date'] || cols[1];
+    const desc = obj['Description'] || cols[2] || 'Fee';
     if (!isNaN(amount) && amount !== 0) {
       fees.push({ date: date || '', amount, desc });
     }
   });
+
+  // Also capture GST/HST/PST from Change in NAV section
+  const taxLine = lines.find(l => l.startsWith('Change in NAV,Data,GST/HST/PST,'));
+  if (taxLine) {
+    const taxAmount = parseFloat(taxLine.split(',')[3]);
+    if (!isNaN(taxAmount) && taxAmount !== 0) {
+      // Find the period end date from Statement section
+      const periodLine = lines.find(l => l.startsWith('Statement,Data,Period,'));
+      let taxDate = '';
+      if (periodLine) {
+        const periodStr = periodLine.replace(/"/g,'');
+        const dateMatch = periodStr.match(/(\w+ \d+, \d{4})\s*$/);
+        if (dateMatch) {
+          const d = new Date(dateMatch[1]);
+          taxDate = d.toISOString().split('T')[0];
+        }
+      }
+      fees.push({ date: taxDate, amount: taxAmount, desc: 'GST/HST/PST (IBKR)' });
+    }
+  }
 
   return { trades: result, startingNav, fees };
 }
@@ -2161,31 +2182,24 @@ async function importIBKRTrades(){
 
   setSyncStatus('syncing','SAVING');
 
-  // 1. Set starting balance from CSV if not already set by user
+  // 1. Always set starting balance from CSV
   if(meta.startingNav) {
-    const existingStart = accountEvents.find(e => e.id === 'start');
-    if(!existingStart || confirm(`Update starting balance to $${meta.startingNav.toFixed(2)} (from IBKR CSV)?`)) {
-      const startEvent = { id: 'start', type: 'set', amount: meta.startingNav, date: '2026-01-01', note: 'Starting balance (from IBKR CSV)' };
-      const idx = accountEvents.findIndex(e => e.id === 'start');
-      if(idx >= 0) accountEvents[idx] = startEvent; else accountEvents.push(startEvent);
-      await cloudUpsertAccountEvent(startEvent);
-    }
+    const startEvent = { id: 'start', type: 'set', amount: meta.startingNav, date: '2026-01-01', note: 'Starting balance (from IBKR CSV)' };
+    const idx = accountEvents.findIndex(e => e.id === 'start');
+    if(idx >= 0) accountEvents[idx] = startEvent; else accountEvents.push(startEvent);
+    await cloudUpsertAccountEvent(startEvent);
   }
 
-  // 2. Import fees as account events
+  // 2. Import fees — always upsert so re-importing corrects old values
   if(meta.fees && meta.fees.length > 0) {
-    const existingFeeIds = new Set(accountEvents.map(e => e.id));
     let newFees = 0;
     for(const fee of meta.fees) {
-      const feeId = `ibkr-fee-${fee.date}-${fee.amount}-${fee.desc.slice(0,20).replace(/\s/g,'')}`;
-      if(!existingFeeIds.has(feeId)) {
-        const feeEvent = { id: feeId, type: 'fee', amount: fee.amount, date: fee.date, note: fee.desc };
-        accountEvents.push(feeEvent);
-        await cloudUpsertAccountEvent(feeEvent);
-        newFees++;
-      }
+      const feeId = `ibkr-fee-${fee.date}-${fee.desc.slice(0,30).replace(/[\s\[\]]/g,'')}`;
+      const feeEvent = { id: feeId, type: 'fee', amount: fee.amount, date: fee.date, note: fee.desc };
+      const idx = accountEvents.findIndex(e => e.id === feeId);
+      if(idx >= 0) accountEvents[idx] = feeEvent; else { accountEvents.push(feeEvent); newFees++; }
+      await cloudUpsertAccountEvent(feeEvent);
     }
-    if(newFees > 0) showToast(`Imported ${newFees} fee entries from IBKR`, false);
   }
 
   // 3. Import trades (duplicate check)
