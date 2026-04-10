@@ -2180,12 +2180,14 @@ async function importIBKRTrades(){
 
   setSyncStatus('syncing','SAVING');
 
-  // 1. Always set starting balance from CSV
+  // 1. Set starting balance from CSV only if not already set
   if(meta.startingNav) {
-    const startEvent = { id: 'start', type: 'set', amount: meta.startingNav, date: '2026-01-01', note: 'Starting balance (from IBKR CSV)' };
-    const idx = accountEvents.findIndex(e => e.id === 'start');
-    if(idx >= 0) accountEvents[idx] = startEvent; else accountEvents.push(startEvent);
-    await cloudUpsertAccountEvent(startEvent);
+    const existingStart = accountEvents.find(e => e.id === 'start');
+    if(!existingStart) {
+      const startEvent = { id: 'start', type: 'set', amount: meta.startingNav, date: '2026-01-01', note: 'Starting balance (from IBKR CSV)' };
+      accountEvents.push(startEvent);
+      await cloudUpsertAccountEvent(startEvent);
+    }
   }
 
   // 2. Import fees — always upsert using stable IDs so re-importing never duplicates
