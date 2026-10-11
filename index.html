@@ -844,6 +844,14 @@ async function loadAllFromCloud() {
     }
 
     setSyncStatus('synced', 'SYNCED');
+
+    // Keep-alive: ping DB every 6 hours while app stays open, to prevent Supabase free-tier pausing
+    if (!window._keepAliveInterval) {
+      window._keepAliveInterval = setInterval(async () => {
+        try { await sb.from('account_events').select('id').eq('user_id', uid).limit(1); }
+        catch(e) { console.warn('Keep-alive ping failed:', e); }
+      }, 6 * 60 * 60 * 1000);
+    }
   } catch(e) {
     setSyncStatus('error', 'ERROR');
     showToast('Could not load data: ' + e.message, true);
